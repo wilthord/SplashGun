@@ -11,5 +11,7 @@ EntityClass = Class.create({
     update : function() { },
 
     //Pinta la entidad en la escena. es invocado por el GameEngine
-    draw : function() { }
+    draw : function() { 
+        pintarSprite(this.currSpriteName, this.pos.x, this.pos.y);
+    }
 });

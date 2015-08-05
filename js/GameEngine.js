@@ -17,9 +17,18 @@ GameEngineClass = Class.create({
 
 	// Metodo invocado cuando se terminan de cargar los sprites
 	callbackIniciar: function(){
+		//Creamos el apuntador (Posición del mouse)
 		var marcaMouse = new GunTargetClass();
-		//this.entities = [marcaMouse];
+		// Guardamos la nueva entidad, en nuestra lista de entidades
 		GE.entities.push(marcaMouse);
+
+		//Creamos al personaje
+		var personaje = new PlayerClass();
+		personaje.pos.x=100;
+		personaje.pos.y=100;
+
+		//Guardamos al personaje en la lista de entidades
+		GE.entities.push(personaje);
 
 		/** Inicio de la sección para preparar un gameLoop eficiente **/
 		var animFrame = window.requestAnimationFrame ||

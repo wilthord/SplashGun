@@ -21,17 +21,15 @@ InputEngineClass = Class.create({
 	//-----------------------------
 	setup: function () {
 		// Se asocian las teclas W, A, S, D a las acciones respectivas
-		/*
 		gInputEngine.bind(87, MOV_ARRIBA);
 		gInputEngine.bind(65, MOV_IZQUIERDA);
 		gInputEngine.bind(83, MOV_ABAJO);
 		gInputEngine.bind(68, MOV_DERECHA);
-*/
 
 		// Se agregan los listeners para los eventos de ingreso
 		document.getElementById(GE.nombreCanvas).addEventListener('mousemove', gInputEngine.onMouseMove);
-		document.getElementById(GE.nombreCanvas).addEventListener('keydown', gInputEngine.onKeyDown);
-		document.getElementById(GE.nombreCanvas).addEventListener('keyup', gInputEngine.onKeyUp);
+		document.addEventListener('keydown', gInputEngine.onKeyDown);
+		document.addEventListener('keyup', gInputEngine.onKeyUp);
 	},
 
 	//-----------------------------
@@ -43,7 +41,7 @@ InputEngineClass = Class.create({
 	//-----------------------------
 	onKeyDown: function (event) {
 		// Se obtiene la accion relacionada a la tecla presionada
-		var action = gInputEngine.bindings[event.keyID];
+		var action = gInputEngine.bindings[event.keyCode];
 
 		//Si la tecla presionada se encuentra mapeada
 		if (action) {
@@ -56,7 +54,7 @@ InputEngineClass = Class.create({
 	onKeyUp: function (event) {
 		
 		// Se obtiene la accion relacionada a la tecla liberada
-		var action = gInputEngine.bindings[event.keyID];
+		var action = gInputEngine.bindings[event.keyCode];
 
 		//Si la tecla presionada se encuentra mapeada
 		if (action) {

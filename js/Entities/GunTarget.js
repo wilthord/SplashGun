@@ -1,4 +1,5 @@
 GunTargetClass = Class.create(EntityClass, {
+	pos : {x:0,y:0},
 	zindex: 70,
 	currSpriteName: 'Cuadro1',
 
@@ -7,8 +8,8 @@ GunTargetClass = Class.create(EntityClass, {
 		this.pos.y = gInputEngine.mouse.y;
 	},
 
-	draw: function(){
-		pintarSprite(this.currSpriteName, this.pos.x, this.pos.y);
-	}
+	draw : function() { 
+        pintarSprite(this.currSpriteName, this.pos.x, this.pos.y);
+    }
 
 });

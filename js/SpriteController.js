@@ -107,5 +107,5 @@ function pintarSprite(nombreSprite, x, y){
         return;
     }
 
-    ctx.drawImage(sheet.img, sprite.x, sprite.y, sprite.w, sprite.h, x, y, sprite.w, sprite.h);
+    GE.ctx.drawImage(sheet.img, sprite.x, sprite.y, sprite.w, sprite.h, x, y, sprite.w, sprite.h);
 }

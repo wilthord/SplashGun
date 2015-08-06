@@ -13,17 +13,21 @@ GameEngineClass = Class.create({
 
 	entities:[],
 
+	personaje:{},
+
+	marcaMouse:{},
+
 	nombreCanvas:'myCanvas',
 
 	// Metodo invocado cuando se terminan de cargar los sprites
 	callbackIniciar: function(){
 		//Creamos el apuntador (Posición del mouse)
-		var marcaMouse = new GunTargetClass();
+		GE.marcaMouse = new GunTargetClass();
 		// Guardamos la nueva entidad, en nuestra lista de entidades
 		GE.entities.push(marcaMouse);
 
 		//Creamos al personaje
-		var personaje = new PlayerClass();
+		GE.personaje = new PlayerClass();
 		personaje.pos.x=100;
 		personaje.pos.y=100;
 
@@ -86,6 +90,8 @@ GameEngineClass = Class.create({
     	GE.entities.forEach(function(entidad) {
     		entidad.update();
     	});
+
+    	
     },
 
     drawGame:function(){

@@ -4,6 +4,10 @@ MOV_IZQUIERDA = 'move-left';
 MOV_ABAJO = 'move-down';
 MOV_DERECHA = 'move-right';
 
+ACT_DISPARA = 'dispara';
+
+CLICK = 'Click';
+
 InputEngineClass = Class.create({
 
 	// Diccionario con la relación entre las teclas y la acción
@@ -25,9 +29,12 @@ InputEngineClass = Class.create({
 		gInputEngine.bind(65, MOV_IZQUIERDA);
 		gInputEngine.bind(83, MOV_ABAJO);
 		gInputEngine.bind(68, MOV_DERECHA);
+		gInputEngine.bind(CLICK, DISPARA);
 
 		// Se agregan los listeners para los eventos de ingreso
 		document.getElementById(GE.nombreCanvas).addEventListener('mousemove', gInputEngine.onMouseMove);
+		document.getElementById(GE.nombreCanvas).addEventListener("mousedown", gInputEngine.onMouseDown);
+		document.getElementById(GE.nombreCanvas).addEventListener("mouseup", gInputEngine.onMouseUP);
 		document.addEventListener('keydown', gInputEngine.onKeyDown);
 		document.addEventListener('keyup', gInputEngine.onKeyUp);
 	},
@@ -47,6 +54,29 @@ InputEngineClass = Class.create({
 		if (action) {
 			// Se marca la acción como true, mientras esté en true se ejecutará la acción
 			gInputEngine.actions[action] = true;
+		}
+	},
+
+	//-----------------------------
+	onMouseDown: function () {
+		// Se obtiene la accion relacionada a presionar el click
+		var action = gInputEngine.bindings[CLICK];
+
+		//Si la acción está mapeada
+		if (action) {
+			// Se marca la acción como true, mientras esté en true se ejecutará la acción
+			gInputEngine.actions[action] = true;
+		}
+	},
+
+	onMouseUP: function () {
+		// Se obtiene la accion relacionada a liberar el click
+		var action = gInputEngine.bindings[CLICK];
+
+		//Si la acción está mapeada
+		if (action) {
+			// Se marca la acción como false.
+			gInputEngine.actions[action] = false;
 		}
 	},
 

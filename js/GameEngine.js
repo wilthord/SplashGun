@@ -24,15 +24,15 @@ GameEngineClass = Class.create({
 		//Creamos el apuntador (Posición del mouse)
 		GE.marcaMouse = new GunTargetClass();
 		// Guardamos la nueva entidad, en nuestra lista de entidades
-		GE.entities.push(marcaMouse);
+		GE.entities.push(GE.marcaMouse);
 
 		//Creamos al personaje
 		GE.personaje = new PlayerClass();
-		personaje.pos.x=100;
-		personaje.pos.y=100;
+		GE.personaje.pos.x=100;
+		GE.personaje.pos.y=100;
 
 		//Guardamos al personaje en la lista de entidades
-		GE.entities.push(personaje);
+		GE.entities.push(GE.personaje);
 
 		/** Inicio de la sección para preparar un gameLoop eficiente **/
 		var animFrame = window.requestAnimationFrame ||

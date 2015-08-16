@@ -29,7 +29,7 @@ InputEngineClass = Class.create({
 		gInputEngine.bind(65, MOV_IZQUIERDA);
 		gInputEngine.bind(83, MOV_ABAJO);
 		gInputEngine.bind(68, MOV_DERECHA);
-		gInputEngine.bind(CLICK, DISPARA);
+		gInputEngine.bind(CLICK, ACT_DISPARA);
 
 		// Se agregan los listeners para los eventos de ingreso
 		document.getElementById(GE.nombreCanvas).addEventListener('mousemove', gInputEngine.onMouseMove);

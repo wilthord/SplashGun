@@ -20,6 +20,35 @@ GameEngineClass = function(){
 	this.nombreCanvas='myCanvas';
 }
 
+GameEngineClass.prototype.setup = function () {
+
+    // Create physics engine
+    gPhysicsEngine.create();
+
+    // Add contact listener
+    /*
+    gPhysicsEngine.addContactListener({
+
+        PostSolve: function (bodyA, bodyB, impulse) {
+            var uA = bodyA ? bodyA.GetUserData() : null;
+            var uB = bodyB ? bodyB.GetUserData() : null;
+
+            if (uA !== null) {
+                if (uA.ent !== null && uA.ent.onTouch) {
+                    uA.ent.onTouch(bodyB, null, impulse);
+                }
+            }
+
+            if (uB !== null) {
+                if (uB.ent !== null && uB.ent.onTouch) {
+                    uB.ent.onTouch(bodyA, null, impulse);
+                }
+            }
+        }
+    });*/
+
+}
+
 GameEngineClass.prototype.constructor = GameEngineClass;
 	// Metodo invocado cuando se terminan de cargar los sprites
 GameEngineClass.prototype.callbackIniciar = function(){

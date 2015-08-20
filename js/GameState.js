@@ -1,9 +1,11 @@
-GameStateClass = Class.create({
+GameStateClass = function(){
 
-	canvasName:null,
+	this.canvasName=null;
 
-	canvas:null,
+	this.canvas=null;
 
-	ctx:null
+	this.ctx=null;
 
-});
+}
+
+GameStateClass.prototype.constructor = GameStateClass;

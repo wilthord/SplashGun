@@ -1,50 +1,51 @@
 //Mapa de todas las SpriteSheets
 spriteSheetsMap={};
 
-SpriteSheetClass = Class.create({
+SpriteSheetClass = function(){
 
     // We store in the SpriteSheetClass:
     //
     // The Image object that we created for our
     // atlas.
-	img: null,
+	this.img = null;
 
-    // The URL path that we grabbed our atlas
-    // from.
-	url: "",
+    // The URL path that we grabbed our atlas from.
+	this.url = "";
 
     // An array of all the sprites in our atlas.
-	sprites: [],
+	this.sprites = [];
 
-    defSprite: function (nombre, x, y, w, h) {
+}
 
-        var spt = new Sprite();
+SpriteSheetClass.prototype.constructor = SpriteSheetClass;
+
+SpriteSheetClass.prototype.defSprite = function (nombre, x, y, w, h) {
+
+    var spt = new Sprite();
+    
+    spt.id = nombre;
+    spt.x = x;
+    spt.y = y;
+    spt.w = w;
+    spt.h = h;
+
+    this.sprites.push(spt);
+}
+
+
+SpriteSheetClass.prototype.getSprite = function (nombre) {
+
+    for(var i = 0; i < this.sprites.length; i++) {
         
-        spt.id = nombre;
-        spt.x = x;
-        spt.y = y;
-        spt.w = w;
-        spt.h = h;
+        if(this.sprites[i].id === nombre) {
 
-        this.sprites.push(spt);
-    },
-
-
-    getSprite: function (nombre) {
-
-        for(var i = 0; i < this.sprites.length; i++) {
-            
-            if(this.sprites[i].id === nombre) {
-
-                return this.sprites[i];
-            }
-
+            return this.sprites[i];
         }
 
-        return null;
     }
-     
-});
+
+    return null;
+}
 
 
 function loadSprites(spritesFilesURL, callbackIniciar){

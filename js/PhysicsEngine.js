@@ -1,17 +1,17 @@
 
 // These are global shorthands we declare for Box2D primitives
 // we'll be using very frequently.
-Vec2 = Box2D.Common.Math.b2Vec2;
-BodyDef = Box2D.Dynamics.b2BodyDef;
-Body = Box2D.Dynamics.b2Body;
-FixtureDef = Box2D.Dynamics.b2FixtureDef;
-Fixture = Box2D.Dynamics.b2Fixture;
-World = Box2D.Dynamics.b2World;
-MassData = Box2D.Collision.Shapes.b2MassData;
-PolygonShape = Box2D.Collision.Shapes.b2PolygonShape;
-CircleShape = Box2D.Collision.Shapes.b2CircleShape;
-DebugDraw = Box2D.Dynamics.b2DebugDraw;
-RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+Vec2 = b2Vec2;
+BodyDef = b2BodyDef;
+Body = b2Body;
+FixtureDef = b2FixtureDef;
+Fixture = b2Fixture;
+World = b2World;
+MassData = b2MassData;
+PolygonShape = b2PolygonShape;
+CircleShape = b2CircleShape;
+DebugDraw = b2DebugDraw;
+RevoluteJointDef = b2RevoluteJointDef;
 
 PhysicsEngineClass = function(){
     this.world = null;
@@ -86,6 +86,8 @@ PhysicsEngineClass.prototype.addBody = function (entityDef) {
         fixtureDefinition.friction = 0;
         fixtureDefinition.restitution = 1.0;
     }
+
+    if(entityDef.filterGroupIndex) fixtureDefinition.filter.groupIndex = entityDef.filterGroupIndex;
 
     // Now we define the shape of this object as a box
     fixtureDefinition.shape = new PolygonShape();

@@ -9,6 +9,8 @@ GameEngineClass = function(){
 
 	this.ctx = {};
 
+	this.canvasObj = {};
+
 	this.canvasSize = {w:500, h:500};
 
 	this.entities=[];
@@ -98,11 +100,13 @@ GameEngineClass.prototype.callbackIniciar = function(){
 }
 
 GameEngineClass.prototype.init=function(){
-	var canvasObj = document.getElementById("myCanvas");
-	canvasObj.width = this.canvasSize.w;
-	canvasObj.height = this.canvasSize.h;
-	GE.ctx = canvasObj.getContext("2d");
+	this.canvasObj = document.getElementById("myCanvas");
+	this.canvasObj.width = this.canvasSize.w;
+	this.canvasObj.height = this.canvasSize.h;
+	GE.ctx = this.canvasObj.getContext("2d");
 	loadSprites("img/spriteSheetMap.json", GE.callbackIniciar);
+	// Se inicializa el PhysicsEngine
+	this.setup();
 }
 
 GameEngineClass.prototype.tick = function() {
@@ -122,7 +126,7 @@ GameEngineClass.prototype.updateGame=function(){
 		entidad.update();
 	});
 
-	
+	gPhysicsEngine.update();
 }
 
 GameEngineClass.prototype.drawGame=function(){

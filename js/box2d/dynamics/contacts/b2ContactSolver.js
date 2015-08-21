@@ -1,537 +1,785 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-var b2ContactSolver = Class.create();
-b2ContactSolver.prototype = 
-{
-	initialize: function(contacts, contactCount, allocator){
-		// initialize instance variables for references
-		this.m_constraints = new Array();
-		//
-
+var b2ContactSolver = function() {
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+b2ContactSolver.prototype.__constructor = function () {
+	}
+b2ContactSolver.prototype.__varz = function(){
+this.m_step =  new b2TimeStep();
+this.m_constraints =  new Array ();
+}
+// static methods
+// static attributes
+b2ContactSolver.s_worldManifold =  new b2WorldManifold();
+b2ContactSolver.s_psm =  new b2PositionSolverManifold();
+// methods
+b2ContactSolver.prototype.Initialize = function (step, contacts, contactCount, allocator) {
+		var contact;
+		
+		this.m_step.Set(step)
+		
 		this.m_allocator = allocator;
-
+		
 		var i = 0;
 		var tVec;
 		var tMat;
+		
+		this.m_constraintCount = contactCount;
 
-		this.m_constraintCount = 0;
+		
+		while (this.m_constraints.length < this.m_constraintCount)
+		{
+			this.m_constraints[this.m_constraints.length] = new b2ContactConstraint();
+		}
+		
 		for (i = 0; i < contactCount; ++i)
 		{
-			this.m_constraintCount += contacts[i].GetManifoldCount();
-		}
-
-		// fill array
-		for (i = 0; i < this.m_constraintCount; i++){
-			this.m_constraints[i] = new b2ContactConstraint();
-		}
-
-		var count = 0;
-		for (i = 0; i < contactCount; ++i)
-		{
-			var contact = contacts[i];
-			var b1 = contact.m_shape1.m_body;
-			var b2 = contact.m_shape2.m_body;
-			var manifoldCount = contact.GetManifoldCount();
-			var manifolds = contact.GetManifolds();
-			var friction = contact.m_friction;
-			var restitution = contact.m_restitution;
-
-			//var v1 = b1.m_linearVelocity.Copy();
-			var v1X = b1.m_linearVelocity.x;
-			var v1Y = b1.m_linearVelocity.y;
-			//var v2 = b2.m_linearVelocity.Copy();
-			var v2X = b2.m_linearVelocity.x;
-			var v2Y = b2.m_linearVelocity.y;
-			var w1 = b1.m_angularVelocity;
-			var w2 = b2.m_angularVelocity;
-
-			for (var j = 0; j < manifoldCount; ++j)
+			contact = contacts[i];
+			var fixtureA = contact.m_fixtureA;
+			var fixtureB = contact.m_fixtureB;
+			var shapeA = fixtureA.m_shape;
+			var shapeB = fixtureB.m_shape;
+			var radiusA = shapeA.m_radius;
+			var radiusB = shapeB.m_radius;
+			var bodyA = fixtureA.m_body;
+			var bodyB = fixtureB.m_body;
+			var manifold = contact.GetManifold();
+			
+			var friction = b2Settings.b2MixFriction(fixtureA.GetFriction(), fixtureB.GetFriction());
+			var restitution = b2Settings.b2MixRestitution(fixtureA.GetRestitution(), fixtureB.GetRestitution());
+			
+			
+			var vAX = bodyA.m_linearVelocity.x;
+			var vAY = bodyA.m_linearVelocity.y;
+			
+			var vBX = bodyB.m_linearVelocity.x;
+			var vBY = bodyB.m_linearVelocity.y;
+			var wA = bodyA.m_angularVelocity;
+			var wB = bodyB.m_angularVelocity;
+			
+			b2Settings.b2Assert(manifold.m_pointCount > 0);
+			
+			b2ContactSolver.s_worldManifold.Initialize(manifold, bodyA.m_xf, radiusA, bodyB.m_xf, radiusB);
+			
+			var normalX = b2ContactSolver.s_worldManifold.m_normal.x;
+			var normalY = b2ContactSolver.s_worldManifold.m_normal.y;
+			
+			var cc = this.m_constraints[ i ];
+			cc.bodyA = bodyA; 
+			cc.bodyB = bodyB; 
+			cc.manifold = manifold; 
+			
+			cc.normal.x = normalX;
+			cc.normal.y = normalY;
+			cc.pointCount = manifold.m_pointCount;
+			cc.friction = friction;
+			cc.restitution = restitution;
+			
+			cc.localPlaneNormal.x = manifold.m_localPlaneNormal.x;
+			cc.localPlaneNormal.y = manifold.m_localPlaneNormal.y;
+			cc.localPoint.x = manifold.m_localPoint.x;
+			cc.localPoint.y = manifold.m_localPoint.y;
+			cc.radius = radiusA + radiusB;
+			cc.type = manifold.m_type;
+			
+			for (var k = 0; k < cc.pointCount; ++k)
 			{
-				var manifold = manifolds[ j ];
-
-				//b2Settings.b2Assert(manifold.pointCount > 0);
-
-				//var normal = manifold.normal.Copy();
-				var normalX = manifold.normal.x;
-				var normalY = manifold.normal.y;
-
-				//b2Settings.b2Assert(count < this.m_constraintCount);
-				var c = this.m_constraints[ count ];
-				c.body1 = b1;
-				c.body2 = b2;
-				c.manifold = manifold;
-				//c.normal = normal;
-				c.normal.x = normalX;
-				c.normal.y = normalY;
-				c.pointCount = manifold.pointCount;
-				c.friction = friction;
-				c.restitution = restitution;
-
-				for (var k = 0; k < c.pointCount; ++k)
+				var cp = manifold.m_points[ k ];
+				var ccp = cc.points[ k ];
+				
+				ccp.normalImpulse = cp.m_normalImpulse;
+				ccp.tangentImpulse = cp.m_tangentImpulse;
+				
+				ccp.localPoint.SetV(cp.m_localPoint);
+				
+				var rAX = ccp.rA.x = b2ContactSolver.s_worldManifold.m_points[k].x - bodyA.m_sweep.c.x;
+				var rAY = ccp.rA.y = b2ContactSolver.s_worldManifold.m_points[k].y - bodyA.m_sweep.c.y;
+				var rBX = ccp.rB.x = b2ContactSolver.s_worldManifold.m_points[k].x - bodyB.m_sweep.c.x;
+				var rBY = ccp.rB.y = b2ContactSolver.s_worldManifold.m_points[k].y - bodyB.m_sweep.c.y;
+				
+				var rnA = rAX * normalY - rAY * normalX;
+				var rnB = rBX * normalY - rBY * normalX;
+				
+				rnA *= rnA;
+				rnB *= rnB;
+				
+				var kNormal = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rnA + bodyB.m_invI * rnB;
+				
+				ccp.normalMass = 1.0 / kNormal;
+				
+				var kEqualized = bodyA.m_mass * bodyA.m_invMass + bodyB.m_mass * bodyB.m_invMass;
+				kEqualized += bodyA.m_mass * bodyA.m_invI * rnA + bodyB.m_mass * bodyB.m_invI * rnB;
+				
+				ccp.equalizedMass = 1.0 / kEqualized;
+				
+				
+				var tangentX = normalY
+				var tangentY = -normalX;
+				
+				
+				var rtA = rAX*tangentY - rAY*tangentX;
+				
+				var rtB = rBX*tangentY - rBY*tangentX;
+				
+				rtA *= rtA;
+				rtB *= rtB;
+				
+				var kTangent = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rtA + bodyB.m_invI * rtB;
+				
+				ccp.tangentMass = 1.0 / kTangent;
+				
+				
+				ccp.velocityBias = 0.0;
+				
+				var tX = vBX + (-wB*rBY) - vAX - (-wA*rAY);
+				var tY = vBY + (wB*rBX) - vAY - (wA*rAX);
+				
+				var vRel = cc.normal.x*tX + cc.normal.y*tY;
+				if (vRel < -b2Settings.b2_velocityThreshold)
 				{
-					var cp = manifold.points[ k ];
-					var ccp = c.points[ k ];
-
-					ccp.normalImpulse = cp.normalImpulse;
-					ccp.tangentImpulse = cp.tangentImpulse;
-					ccp.separation = cp.separation;
-
-					//var r1 = b2Math.SubtractVV( cp.position, b1.m_position );
-					var r1X = cp.position.x - b1.m_position.x;
-					var r1Y = cp.position.y - b1.m_position.y;
-					//var r2 = b2Math.SubtractVV( cp.position, b2.m_position );
-					var r2X = cp.position.x - b2.m_position.x;
-					var r2Y = cp.position.y - b2.m_position.y;
-
-					//ccp.localAnchor1 = b2Math.b2MulTMV(b1.m_R, r1);
-					tVec = ccp.localAnchor1;
-					tMat = b1.m_R;
-					tVec.x = r1X * tMat.col1.x + r1Y * tMat.col1.y;
-					tVec.y = r1X * tMat.col2.x + r1Y * tMat.col2.y;
-
-					//ccp.localAnchor2 = b2Math.b2MulTMV(b2.m_R, r2);
-					tVec = ccp.localAnchor2;
-					tMat = b2.m_R;
-					tVec.x = r2X * tMat.col1.x + r2Y * tMat.col1.y;
-					tVec.y = r2X * tMat.col2.x + r2Y * tMat.col2.y;
-
-					var r1Sqr = r1X * r1X + r1Y * r1Y;
-					var r2Sqr = r2X * r2X + r2Y * r2Y;
-
-					//var rn1 = b2Math.b2Dot(r1, normal);
-					var rn1 = r1X*normalX + r1Y*normalY;
-					//var rn2 = b2Math.b2Dot(r2, normal);
-					var rn2 = r2X*normalX + r2Y*normalY;
-					var kNormal = b1.m_invMass + b2.m_invMass;
-					kNormal += b1.m_invI * (r1Sqr - rn1 * rn1) + b2.m_invI * (r2Sqr - rn2 * rn2);
-					//b2Settings.b2Assert(kNormal > Number.MIN_VALUE);
-					ccp.normalMass = 1.0 / kNormal;
-
-					//var tangent = b2Math.b2CrossVF(normal, 1.0);
-					var tangentX = normalY
-					var tangentY = -normalX;
-
-					//var rt1 = b2Math.b2Dot(r1, tangent);
-					var rt1 = r1X*tangentX + r1Y*tangentY;
-					//var rt2 = b2Math.b2Dot(r2, tangent);
-					var rt2 = r2X*tangentX + r2Y*tangentY;
-					var kTangent = b1.m_invMass + b2.m_invMass;
-					kTangent += b1.m_invI * (r1Sqr - rt1 * rt1) + b2.m_invI * (r2Sqr - rt2 * rt2);
-					//b2Settings.b2Assert(kTangent > Number.MIN_VALUE);
-					ccp.tangentMass = 1.0 /  kTangent;
-
-					// Setup a velocity bias for restitution.
-					ccp.velocityBias = 0.0;
-					if (ccp.separation > 0.0)
-					{
-						ccp.velocityBias = -60.0 * ccp.separation;
-					}
-					//var vRel = b2Math.b2Dot(c.normal, b2Math.SubtractVV( b2Math.SubtractVV( b2Math.AddVV( v2, b2Math.b2CrossFV(w2, r2)), v1 ), b2Math.b2CrossFV(w1, r1)));
-					var tX = v2X + (-w2*r2Y) - v1X - (-w1*r1Y);
-					var tY = v2Y + (w2*r2X) - v1Y - (w1*r1X);
-					//var vRel = b2Dot(c.normal, tX/Y);
-					var vRel = c.normal.x*tX + c.normal.y*tY;
-					if (vRel < -b2Settings.b2_velocityThreshold)
-					{
-						ccp.velocityBias += -c.restitution * vRel;
-					}
+					ccp.velocityBias += -cc.restitution * vRel;
 				}
-
-				++count;
+			}
+			
+			
+			if (cc.pointCount == 2)
+			{
+				var ccp1 = cc.points[0];
+				var ccp2 = cc.points[1];
+				
+				var invMassA = bodyA.m_invMass;
+				var invIA = bodyA.m_invI;
+				var invMassB = bodyB.m_invMass;
+				var invIB = bodyB.m_invI;
+				
+				
+				
+				
+				
+				var rn1A = ccp1.rA.x * normalY - ccp1.rA.y * normalX;
+				var rn1B = ccp1.rB.x * normalY - ccp1.rB.y * normalX;
+				var rn2A = ccp2.rA.x * normalY - ccp2.rA.y * normalX;
+				var rn2B = ccp2.rB.x * normalY - ccp2.rB.y * normalX;
+				
+				var k11 = invMassA + invMassB + invIA * rn1A * rn1A + invIB * rn1B * rn1B;
+				var k22 = invMassA + invMassB + invIA * rn2A * rn2A + invIB * rn2B * rn2B;
+				var k12 = invMassA + invMassB + invIA * rn1A * rn2A + invIB * rn1B * rn2B;
+				
+				
+				var k_maxConditionNumber = 100.0;
+				if ( k11 * k11 < k_maxConditionNumber * (k11 * k22 - k12 * k12))
+				{
+					
+					cc.K.col1.Set(k11, k12);
+					cc.K.col2.Set(k12, k22);
+					cc.K.GetInverse(cc.normalMass);
+				}
+				else
+				{
+					
+					
+					cc.pointCount = 1;
+				}
 			}
 		}
-
-		//b2Settings.b2Assert(count == this.m_constraintCount);
-	},
-	//~b2ContactSolver();
-
-	PreSolve: function(){
+		
+		
+	}
+b2ContactSolver.prototype.InitVelocityConstraints = function (step) {
 		var tVec;
 		var tVec2;
 		var tMat;
-
-		// Warm start.
+		
+		
 		for (var i = 0; i < this.m_constraintCount; ++i)
 		{
 			var c = this.m_constraints[ i ];
-
-			var b1 = c.body1;
-			var b2 = c.body2;
-			var invMass1 = b1.m_invMass;
-			var invI1 = b1.m_invI;
-			var invMass2 = b2.m_invMass;
-			var invI2 = b2.m_invI;
-			//var normal = new b2Vec2(c.normal.x, c.normal.y);
+			
+			var bodyA = c.bodyA;
+			var bodyB = c.bodyB;
+			var invMassA = bodyA.m_invMass;
+			var invIA = bodyA.m_invI;
+			var invMassB = bodyB.m_invMass;
+			var invIB = bodyB.m_invI;
+			
 			var normalX = c.normal.x;
 			var normalY = c.normal.y;
-			//var tangent = b2Math.b2CrossVF(normal, 1.0);
+			
 			var tangentX = normalY;
 			var tangentY = -normalX;
-
+			
+			var tX;
+			
 			var j = 0;
 			var tCount = 0;
-			if (b2World.s_enableWarmStarting)
+			if (step.warmStarting)
 			{
 				tCount = c.pointCount;
 				for (j = 0; j < tCount; ++j)
 				{
 					var ccp = c.points[ j ];
-					//var P = b2Math.AddVV( b2Math.MulFV(ccp.normalImpulse, normal), b2Math.MulFV(ccp.tangentImpulse, tangent));
-					var PX = ccp.normalImpulse*normalX + ccp.tangentImpulse*tangentX;
-					var PY = ccp.normalImpulse*normalY + ccp.tangentImpulse*tangentY;
-
-					//var r1 = b2Math.b2MulMV(b1.m_R, ccp.localAnchor1);
-					tMat = b1.m_R;
-					tVec = ccp.localAnchor1;
-					var r1X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-					var r1Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-
-					//var r2 = b2Math.b2MulMV(b2.m_R, ccp.localAnchor2);
-					tMat = b2.m_R;
-					tVec = ccp.localAnchor2;
-					var r2X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-					var r2Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-
-					//b1.m_angularVelocity -= invI1 * b2Math.b2CrossVV(r1, P);
-					b1.m_angularVelocity -= invI1 * (r1X * PY - r1Y * PX);
-					//b1.m_linearVelocity.Subtract( b2Math.MulFV(invMass1, P) );
-					b1.m_linearVelocity.x -= invMass1 * PX;
-					b1.m_linearVelocity.y -= invMass1 * PY;
-					//b2.m_angularVelocity += invI2 * b2Math.b2CrossVV(r2, P);
-					b2.m_angularVelocity += invI2 * (r2X * PY - r2Y * PX);
-					//b2.m_linearVelocity.Add( b2Math.MulFV(invMass2, P) );
-					b2.m_linearVelocity.x += invMass2 * PX;
-					b2.m_linearVelocity.y += invMass2 * PY;
-
-					ccp.positionImpulse = 0.0;
+					ccp.normalImpulse *= step.dtRatio;
+					ccp.tangentImpulse *= step.dtRatio;
+					
+					var PX = ccp.normalImpulse * normalX + ccp.tangentImpulse * tangentX;
+					var PY = ccp.normalImpulse * normalY + ccp.tangentImpulse * tangentY;
+					
+					
+					bodyA.m_angularVelocity -= invIA * (ccp.rA.x * PY - ccp.rA.y * PX);
+					
+					bodyA.m_linearVelocity.x -= invMassA * PX;
+					bodyA.m_linearVelocity.y -= invMassA * PY;
+					
+					bodyB.m_angularVelocity += invIB * (ccp.rB.x * PY - ccp.rB.y * PX);
+					
+					bodyB.m_linearVelocity.x += invMassB * PX;
+					bodyB.m_linearVelocity.y += invMassB * PY;
 				}
 			}
-			else{
+			else
+			{
 				tCount = c.pointCount;
 				for (j = 0; j < tCount; ++j)
 				{
 					var ccp2 = c.points[ j ];
 					ccp2.normalImpulse = 0.0;
 					ccp2.tangentImpulse = 0.0;
-
-					ccp2.positionImpulse = 0.0;
 				}
 			}
 		}
-	},
-	SolveVelocityConstraints: function(){
+	}
+b2ContactSolver.prototype.SolveVelocityConstraints = function () {
 		var j = 0;
 		var ccp;
-		var r1X;
-		var r1Y;
-		var r2X;
-		var r2Y;
+		var rAX;
+		var rAY;
+		var rBX;
+		var rBY;
 		var dvX;
 		var dvY;
+		var vn;
+		var vt;
 		var lambda;
+		var maxFriction;
 		var newImpulse;
 		var PX;
 		var PY;
-
+		var dX;
+		var dY;
+		var P1X;
+		var P1Y;
+		var P2X;
+		var P2Y;
+		
 		var tMat;
 		var tVec;
-
+		
 		for (var i = 0; i < this.m_constraintCount; ++i)
 		{
 			var c = this.m_constraints[ i ];
-			var b1 = c.body1;
-			var b2 = c.body2;
-			var b1_angularVelocity = b1.m_angularVelocity;
-			var b1_linearVelocity = b1.m_linearVelocity;
-			var b2_angularVelocity = b2.m_angularVelocity;
-			var b2_linearVelocity = b2.m_linearVelocity;
-
-			var invMass1 = b1.m_invMass;
-			var invI1 = b1.m_invI;
-			var invMass2 = b2.m_invMass;
-			var invI2 = b2.m_invI;
-			//var normal = new b2Vec2(c.normal.x, c.normal.y);
+			var bodyA = c.bodyA;
+			var bodyB = c.bodyB;
+			var wA = bodyA.m_angularVelocity;
+			var wB = bodyB.m_angularVelocity;
+			var vA = bodyA.m_linearVelocity;
+			var vB = bodyB.m_linearVelocity;
+			
+			var invMassA = bodyA.m_invMass;
+			var invIA = bodyA.m_invI;
+			var invMassB = bodyB.m_invMass;
+			var invIB = bodyB.m_invI;
+			
 			var normalX = c.normal.x;
 			var normalY = c.normal.y;
-			//var tangent = b2Math.b2CrossVF(normal, 1.0);
+			
 			var tangentX = normalY;
 			var tangentY = -normalX;
-
-			// Solver normal constraints
-			var tCount = c.pointCount;
-			for (j = 0; j < tCount; ++j)
+			var friction = c.friction;
+			
+			var tX;
+			
+			
+			
+			for (j = 0; j < c.pointCount; j++)
 			{
-				ccp = c.points[ j ];
-
-				//r1 = b2Math.b2MulMV(b1.m_R, ccp.localAnchor1);
-				tMat = b1.m_R;
-				tVec = ccp.localAnchor1;
-				r1X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				r1Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-				//r2 = b2Math.b2MulMV(b2.m_R, ccp.localAnchor2);
-				tMat = b2.m_R;
-				tVec = ccp.localAnchor2;
-				r2X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				r2Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-
-				// Relative velocity at contact
-				//var dv = b2Math.SubtractVV( b2Math.AddVV( b2.m_linearVelocity, b2Math.b2CrossFV(b2.m_angularVelocity, r2)), b2Math.SubtractVV(b1.m_linearVelocity, b2Math.b2CrossFV(b1.m_angularVelocity, r1)));
-				//dv = b2Math.SubtractVV(b2Math.SubtractVV( b2Math.AddVV( b2.m_linearVelocity, b2Math.b2CrossFV(b2.m_angularVelocity, r2)), b1.m_linearVelocity), b2Math.b2CrossFV(b1.m_angularVelocity, r1));
-				dvX = b2_linearVelocity.x + (-b2_angularVelocity * r2Y) - b1_linearVelocity.x - (-b1_angularVelocity * r1Y);
-				dvY = b2_linearVelocity.y + (b2_angularVelocity * r2X) - b1_linearVelocity.y - (b1_angularVelocity * r1X);
-
-				// Compute normal impulse
-				//var vn = b2Math.b2Dot(dv, normal);
-				var vn = dvX * normalX + dvY * normalY;
+				ccp = c.points[j];
+				
+				
+				
+				dvX = vB.x - wB * ccp.rB.y - vA.x + wA * ccp.rA.y;
+				dvY = vB.y + wB * ccp.rB.x - vA.y - wA * ccp.rA.x;
+				
+				
+				vt = dvX * tangentX + dvY * tangentY;
+				lambda = ccp.tangentMass * -vt;
+				
+				
+				maxFriction = friction * ccp.normalImpulse;
+				newImpulse = b2Math.Clamp(ccp.tangentImpulse + lambda, -maxFriction, maxFriction);
+				lambda = newImpulse-ccp.tangentImpulse;
+				
+				
+				PX = lambda * tangentX;
+				PY = lambda * tangentY;
+				
+				vA.x -= invMassA * PX;
+				vA.y -= invMassA * PY;
+				wA -= invIA * (ccp.rA.x * PY - ccp.rA.y * PX);
+				
+				vB.x += invMassB * PX;
+				vB.y += invMassB * PY;
+				wB += invIB * (ccp.rB.x * PY - ccp.rB.y * PX);
+				
+				ccp.tangentImpulse = newImpulse;
+			}
+			
+			
+			var tCount = c.pointCount;
+			if (c.pointCount == 1)
+			{
+				ccp = c.points[ 0 ];
+				
+				
+				
+				dvX = vB.x + (-wB * ccp.rB.y) - vA.x - (-wA * ccp.rA.y);
+				dvY = vB.y + (wB * ccp.rB.x) - vA.y - (wA * ccp.rA.x);
+				
+				
+				
+				vn = dvX * normalX + dvY * normalY;
 				lambda = -ccp.normalMass * (vn - ccp.velocityBias);
-
-				// b2Clamp the accumulated impulse
-				newImpulse = b2Math.b2Max(ccp.normalImpulse + lambda, 0.0);
+				
+				
+				
+				newImpulse = ccp.normalImpulse + lambda;
+				newImpulse = newImpulse > 0 ? newImpulse : 0.0;
 				lambda = newImpulse - ccp.normalImpulse;
-
-				// Apply contact impulse
-				//P = b2Math.MulFV(lambda, normal);
+				
+				
+				
 				PX = lambda * normalX;
 				PY = lambda * normalY;
-
-				//b1.m_linearVelocity.Subtract( b2Math.MulFV( invMass1, P ) );
-				b1_linearVelocity.x -= invMass1 * PX;
-				b1_linearVelocity.y -= invMass1 * PY;
-				b1_angularVelocity -= invI1 * (r1X * PY - r1Y * PX);
-
-				//b2.m_linearVelocity.Add( b2Math.MulFV( invMass2, P ) );
-				b2_linearVelocity.x += invMass2 * PX;
-				b2_linearVelocity.y += invMass2 * PY;
-				b2_angularVelocity += invI2 * (r2X * PY - r2Y * PX);
-
+				
+				
+				vA.x -= invMassA * PX;
+				vA.y -= invMassA * PY;
+				wA -= invIA * (ccp.rA.x * PY - ccp.rA.y * PX);
+				
+				
+				vB.x += invMassB * PX;
+				vB.y += invMassB * PY;
+				wB += invIB * (ccp.rB.x * PY - ccp.rB.y * PX);
+				
 				ccp.normalImpulse = newImpulse;
-
-
-
-				// MOVED FROM BELOW
-				// Relative velocity at contact
-				//var dv = b2.m_linearVelocity + b2Cross(b2.m_angularVelocity, r2) - b1.m_linearVelocity - b2Cross(b1.m_angularVelocity, r1);
-				//dv =  b2Math.SubtractVV(b2Math.SubtractVV(b2Math.AddVV(b2.m_linearVelocity, b2Math.b2CrossFV(b2.m_angularVelocity, r2)), b1.m_linearVelocity), b2Math.b2CrossFV(b1.m_angularVelocity, r1));
-				dvX = b2_linearVelocity.x + (-b2_angularVelocity * r2Y) - b1_linearVelocity.x - (-b1_angularVelocity * r1Y);
-				dvY = b2_linearVelocity.y + (b2_angularVelocity * r2X) - b1_linearVelocity.y - (b1_angularVelocity * r1X);
-
-				// Compute tangent impulse
-				var vt = dvX*tangentX + dvY*tangentY;
-				lambda = ccp.tangentMass * (-vt);
-
-				// b2Clamp the accumulated impulse
-				var maxFriction = c.friction * ccp.normalImpulse;
-				newImpulse = b2Math.b2Clamp(ccp.tangentImpulse + lambda, -maxFriction, maxFriction);
-				lambda = newImpulse - ccp.tangentImpulse;
-
-				// Apply contact impulse
-				//P = b2Math.MulFV(lambda, tangent);
-				PX = lambda * tangentX;
-				PY = lambda * tangentY;
-
-				//b1.m_linearVelocity.Subtract( b2Math.MulFV( invMass1, P ) );
-				b1_linearVelocity.x -= invMass1 * PX;
-				b1_linearVelocity.y -= invMass1 * PY;
-				b1_angularVelocity -= invI1 * (r1X * PY - r1Y * PX);
-
-				//b2.m_linearVelocity.Add( b2Math.MulFV( invMass2, P ) );
-				b2_linearVelocity.x += invMass2 * PX;
-				b2_linearVelocity.y += invMass2 * PY;
-				b2_angularVelocity += invI2 * (r2X * PY - r2Y * PX);
-
-				ccp.tangentImpulse = newImpulse;
 			}
-
-
-
-			// Solver tangent constraints
-			// MOVED ABOVE FOR EFFICIENCY
-			/*for (j = 0; j < tCount; ++j)
+			else
 			{
-				ccp = c.points[ j ];
-
-				//r1 = b2Math.b2MulMV(b1.m_R, ccp.localAnchor1);
-				tMat = b1.m_R;
-				tVec = ccp.localAnchor1;
-				r1X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				r1Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-				//r2 = b2Math.b2MulMV(b2.m_R, ccp.localAnchor2);
-				tMat = b2.m_R;
-				tVec = ccp.localAnchor2;
-				r2X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				r2Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-
-				// Relative velocity at contact
-				//var dv = b2.m_linearVelocity + b2Cross(b2.m_angularVelocity, r2) - b1.m_linearVelocity - b2Cross(b1.m_angularVelocity, r1);
-				//dv =  b2Math.SubtractVV(b2Math.SubtractVV(b2Math.AddVV(b2.m_linearVelocity, b2Math.b2CrossFV(b2.m_angularVelocity, r2)), b1.m_linearVelocity), b2Math.b2CrossFV(b1.m_angularVelocity, r1));
-				dvX = b2_linearVelocity.x + (-b2_angularVelocity * r2Y) - b1_linearVelocity.x - (-b1_angularVelocity * r1Y);
-				dvY = b2_linearVelocity.y + (b2_angularVelocity * r2X) - b1_linearVelocity.y - (b1_angularVelocity * r1X);
-
-				// Compute tangent impulse
-				var vt = dvX*tangentX + dvY*tangentY;
-				lambda = ccp.tangentMass * (-vt);
-
-				// b2Clamp the accumulated impulse
-				var maxFriction = c.friction * ccp.normalImpulse;
-				newImpulse = b2Math.b2Clamp(ccp.tangentImpulse + lambda, -maxFriction, maxFriction);
-				lambda = newImpulse - ccp.tangentImpulse;
-
-				// Apply contact impulse
-				//P = b2Math.MulFV(lambda, tangent);
-				PX = lambda * tangentX;
-				PY = lambda * tangentY;
-
-				//b1.m_linearVelocity.Subtract( b2Math.MulFV( invMass1, P ) );
-				b1_linearVelocity.x -= invMass1 * PX;
-				b1_linearVelocity.y -= invMass1 * PY;
-				b1_angularVelocity -= invI1 * (r1X * PY - r1Y * PX);
-
-				//b2.m_linearVelocity.Add( b2Math.MulFV( invMass2, P ) );
-				b2_linearVelocity.x += invMass2 * PX;
-				b2_linearVelocity.y += invMass2 * PY;
-				b2_angularVelocity += invI2 * (r2X * PY - r2Y * PX);
-
-				ccp.tangentImpulse = newImpulse;
-			}*/
-
-			// Update angular velocity
-			b1.m_angularVelocity = b1_angularVelocity;
-			b2.m_angularVelocity = b2_angularVelocity;
-		}
-	},
-	SolvePositionConstraints: function(beta){
-		var minSeparation = 0.0;
-
-		var tMat;
-		var tVec;
-
-		for (var i = 0; i < this.m_constraintCount; ++i)
-		{
-			var c = this.m_constraints[ i ];
-			var b1 = c.body1;
-			var b2 = c.body2;
-			var b1_position = b1.m_position;
-			var b1_rotation = b1.m_rotation;
-			var b2_position = b2.m_position;
-			var b2_rotation = b2.m_rotation;
-
-			var invMass1 = b1.m_invMass;
-			var invI1 = b1.m_invI;
-			var invMass2 = b2.m_invMass;
-			var invI2 = b2.m_invI;
-			//var normal = new b2Vec2(c.normal.x, c.normal.y);
-			var normalX = c.normal.x;
-			var normalY = c.normal.y;
-			//var tangent = b2Math.b2CrossVF(normal, 1.0);
-			var tangentX = normalY;
-			var tangentY = -normalX;
-
-			// Solver normal constraints
-			var tCount = c.pointCount;
-			for (var j = 0; j < tCount; ++j)
-			{
-				var ccp = c.points[ j ];
-
-				//r1 = b2Math.b2MulMV(b1.m_R, ccp.localAnchor1);
-				tMat = b1.m_R;
-				tVec = ccp.localAnchor1;
-				var r1X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				var r1Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-				//r2 = b2Math.b2MulMV(b2.m_R, ccp.localAnchor2);
-				tMat = b2.m_R;
-				tVec = ccp.localAnchor2;
-				var r2X = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y
-				var r2Y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y
-
-				//var p1 = b2Math.AddVV(b1.m_position, r1);
-				var p1X = b1_position.x + r1X;
-				var p1Y = b1_position.y + r1Y;
-
-				//var p2 = b2Math.AddVV(b2.m_position, r2);
-				var p2X = b2_position.x + r2X;
-				var p2Y = b2_position.y + r2Y;
-
-				//var dp = b2Math.SubtractVV(p2, p1);
-				var dpX = p2X - p1X;
-				var dpY = p2Y - p1Y;
-
-				// Approximate the current separation.
-				//var separation = b2Math.b2Dot(dp, normal) + ccp.separation;
-				var separation = (dpX*normalX + dpY*normalY) + ccp.separation;
-
-				// Track max constraint error.
-				minSeparation = b2Math.b2Min(minSeparation, separation);
-
-				// Prevent large corrections and allow slop.
-				var C = beta * b2Math.b2Clamp(separation + b2Settings.b2_linearSlop, -b2Settings.b2_maxLinearCorrection, 0.0);
-
-				// Compute normal impulse
-				var dImpulse = -ccp.normalMass * C;
-
-				// b2Clamp the accumulated impulse
-				var impulse0 = ccp.positionImpulse;
-				ccp.positionImpulse = b2Math.b2Max(impulse0 + dImpulse, 0.0);
-				dImpulse = ccp.positionImpulse - impulse0;
-
-				//var impulse = b2Math.MulFV( dImpulse, normal );
-				var impulseX = dImpulse * normalX;
-				var impulseY = dImpulse * normalY;
-
-				//b1.m_position.Subtract( b2Math.MulFV( invMass1, impulse ) );
-				b1_position.x -= invMass1 * impulseX;
-				b1_position.y -= invMass1 * impulseY;
-				b1_rotation -= invI1 * (r1X * impulseY - r1Y * impulseX);
-				b1.m_R.Set(b1_rotation);
-
-				//b2.m_position.Add( b2Math.MulFV( invMass2, impulse ) );
-				b2_position.x += invMass2 * impulseX;
-				b2_position.y += invMass2 * impulseY;
-				b2_rotation += invI2 * (r2X * impulseY - r2Y * impulseX);
-				b2.m_R.Set(b2_rotation);
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				var cp1 = c.points[ 0 ];
+				var cp2 = c.points[ 1 ];
+				
+				var aX = cp1.normalImpulse;
+				var aY = cp2.normalImpulse;
+				
+				
+				
+				
+				var dv1X = vB.x - wB * cp1.rB.y - vA.x + wA * cp1.rA.y;
+				var dv1Y = vB.y + wB * cp1.rB.x - vA.y - wA * cp1.rA.x;
+				
+				var dv2X = vB.x - wB * cp2.rB.y - vA.x + wA * cp2.rA.y;
+				var dv2Y = vB.y + wB * cp2.rB.x - vA.y - wA * cp2.rA.x;
+				
+				
+				
+				var vn1 = dv1X * normalX + dv1Y * normalY;
+				
+				var vn2 = dv2X * normalX + dv2Y * normalY;
+				
+				var bX = vn1 - cp1.velocityBias;
+				var bY = vn2 - cp2.velocityBias;
+				
+				
+				tMat = c.K;
+				bX -= tMat.col1.x * aX + tMat.col2.x * aY;
+				bY -= tMat.col1.y * aX + tMat.col2.y * aY;
+				
+				var k_errorTol = 0.001;
+				for (;; )
+				{
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					tMat = c.normalMass;
+					var xX = - (tMat.col1.x * bX + tMat.col2.x * bY);
+					var xY = - (tMat.col1.y * bX + tMat.col2.y * bY);
+					
+					if (xX >= 0.0 && xY >= 0.0) {
+						
+						
+						dX = xX - aX;
+						dY = xY - aY;
+						
+						
+						
+						P1X = dX * normalX;
+						P1Y = dX * normalY;
+						
+						P2X = dY * normalX;
+						P2Y = dY * normalY;
+						
+						
+						vA.x -= invMassA * (P1X + P2X);
+						vA.y -= invMassA * (P1Y + P2Y);
+						
+						wA -= invIA * ( cp1.rA.x * P1Y - cp1.rA.y * P1X + cp2.rA.x * P2Y - cp2.rA.y * P2X);
+						
+						
+						vB.x += invMassB * (P1X + P2X);
+						vB.y += invMassB * (P1Y + P2Y);
+						
+						wB += invIB * ( cp1.rB.x * P1Y - cp1.rB.y * P1X + cp2.rB.x * P2Y - cp2.rB.y * P2X);
+						
+						
+						cp1.normalImpulse = xX;
+						cp2.normalImpulse = xY;
+						
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+						break;
+					}
+					
+					
+					
+					
+					
+					
+					
+					
+					xX = - cp1.normalMass * bX;
+					xY = 0.0;
+					vn1 = 0.0;
+					vn2 = c.K.col1.y * xX + bY;
+					
+					if (xX >= 0.0 && vn2 >= 0.0)
+					{
+						
+						
+						dX = xX - aX;
+						dY = xY - aY;
+						
+						
+						
+						P1X = dX * normalX;
+						P1Y = dX * normalY;
+						
+						P2X = dY * normalX;
+						P2Y = dY * normalY;
+						
+						
+						vA.x -= invMassA * (P1X + P2X);
+						vA.y -= invMassA * (P1Y + P2Y);
+						
+						wA -= invIA * ( cp1.rA.x * P1Y - cp1.rA.y * P1X + cp2.rA.x * P2Y - cp2.rA.y * P2X);
+						
+						
+						vB.x += invMassB * (P1X + P2X);
+						vB.y += invMassB * (P1Y + P2Y);
+						
+						wB += invIB * ( cp1.rB.x * P1Y - cp1.rB.y * P1X + cp2.rB.x * P2Y - cp2.rB.y * P2X);
+						
+						
+						cp1.normalImpulse = xX;
+						cp2.normalImpulse = xY;
+						
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+						break;
+					}
+					
+					
+					
+					
+					
+					
+					
+					
+					xX = 0.0;
+					xY = -cp2.normalMass * bY;
+					vn1 = c.K.col2.x * xY + bX;
+					vn2 = 0.0;
+					if (xY >= 0.0 && vn1 >= 0.0)
+					{
+						
+						
+						dX = xX - aX;
+						dY = xY - aY;
+						
+						
+						
+						P1X = dX * normalX;
+						P1Y = dX * normalY;
+						
+						P2X = dY * normalX;
+						P2Y = dY * normalY;
+						
+						
+						vA.x -= invMassA * (P1X + P2X);
+						vA.y -= invMassA * (P1Y + P2Y);
+						
+						wA -= invIA * ( cp1.rA.x * P1Y - cp1.rA.y * P1X + cp2.rA.x * P2Y - cp2.rA.y * P2X);
+						
+						
+						vB.x += invMassB * (P1X + P2X);
+						vB.y += invMassB * (P1Y + P2Y);
+						
+						wB += invIB * ( cp1.rB.x * P1Y - cp1.rB.y * P1X + cp2.rB.x * P2Y - cp2.rB.y * P2X);
+						
+						
+						cp1.normalImpulse = xX;
+						cp2.normalImpulse = xY;
+						
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+						break;
+					}
+					
+					
+					
+					
+					
+					
+					
+					xX = 0.0;
+					xY = 0.0;
+					vn1 = bX;
+					vn2 = bY;
+					
+					if (vn1 >= 0.0 && vn2 >= 0.0 ) {
+						
+						
+						dX = xX - aX;
+						dY = xY - aY;
+						
+						
+						
+						P1X = dX * normalX;
+						P1Y = dX * normalY;
+						
+						P2X = dY * normalX;
+						P2Y = dY * normalY;
+						
+						
+						vA.x -= invMassA * (P1X + P2X);
+						vA.y -= invMassA * (P1Y + P2Y);
+						
+						wA -= invIA * ( cp1.rA.x * P1Y - cp1.rA.y * P1X + cp2.rA.x * P2Y - cp2.rA.y * P2X);
+						
+						
+						vB.x += invMassB * (P1X + P2X);
+						vB.y += invMassB * (P1Y + P2Y);
+						
+						wB += invIB * ( cp1.rB.x * P1Y - cp1.rB.y * P1X + cp2.rB.x * P2Y - cp2.rB.y * P2X);
+						
+						
+						cp1.normalImpulse = xX;
+						cp2.normalImpulse = xY;
+						
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+						break;
+					}
+					
+					
+					break;
+				}
 			}
-			// Update body rotations
-			b1.m_rotation = b1_rotation;
-			b2.m_rotation = b2_rotation;
+			
+			
+			
+			
+			
+			
+			
+			bodyA.m_angularVelocity = wA;
+			bodyB.m_angularVelocity = wB;
 		}
-
-		return minSeparation >= -b2Settings.b2_linearSlop;
-	},
-	PostSolve: function(){
+	}
+b2ContactSolver.prototype.FinalizeVelocityConstraints = function () {
 		for (var i = 0; i < this.m_constraintCount; ++i)
 		{
 			var c = this.m_constraints[ i ];
 			var m = c.manifold;
-
+			
 			for (var j = 0; j < c.pointCount; ++j)
 			{
-				var mPoint = m.points[j];
-				var cPoint = c.points[j];
-				mPoint.normalImpulse = cPoint.normalImpulse;
-				mPoint.tangentImpulse = cPoint.tangentImpulse;
+				var point1 = m.m_points[j];
+				var point2 = c.points[j];
+				point1.m_normalImpulse = point2.normalImpulse;
+				point1.m_tangentImpulse = point2.tangentImpulse;
 			}
 		}
-	},
-
-	m_allocator: null,
-	m_constraints: new Array(),
-	m_constraintCount: 0};
+	}
+b2ContactSolver.prototype.SolvePositionConstraints = function (baumgarte) {
+		var minSeparation = 0.0;
+		
+		for (var i = 0; i < this.m_constraintCount; i++)
+		{
+			var c = this.m_constraints[i];
+			var bodyA = c.bodyA;
+			var bodyB = c.bodyB;
+			
+			var invMassA = bodyA.m_mass * bodyA.m_invMass;
+			var invIA = bodyA.m_mass * bodyA.m_invI;
+			var invMassB = bodyB.m_mass * bodyB.m_invMass;
+			var invIB = bodyB.m_mass * bodyB.m_invI;
+			
+			
+			b2ContactSolver.s_psm.Initialize(c);
+			var normal = b2ContactSolver.s_psm.m_normal;
+			
+			
+			for (var j = 0; j < c.pointCount; j++)
+			{
+				var ccp = c.points[j];
+				
+				var point = b2ContactSolver.s_psm.m_points[j];
+				var separation = b2ContactSolver.s_psm.m_separations[j];
+				
+				var rAX = point.x - bodyA.m_sweep.c.x;
+				var rAY = point.y - bodyA.m_sweep.c.y;
+				var rBX = point.x - bodyB.m_sweep.c.x;
+				var rBY = point.y - bodyB.m_sweep.c.y;
+				
+				
+				minSeparation = minSeparation < separation?minSeparation:separation;
+				
+				
+				var C = b2Math.Clamp(baumgarte * (separation + b2Settings.b2_linearSlop), -b2Settings.b2_maxLinearCorrection, 0.0);
+				
+				
+				var impulse = -ccp.equalizedMass * C;
+				
+				var PX = impulse * normal.x;
+				var PY = impulse * normal.y;
+				
+				
+				bodyA.m_sweep.c.x -= invMassA * PX;
+				bodyA.m_sweep.c.y -= invMassA * PY;
+				
+				bodyA.m_sweep.a -= invIA * (rAX * PY - rAY * PX);
+				bodyA.SynchronizeTransform();
+				
+				
+				bodyB.m_sweep.c.x += invMassB * PX;
+				bodyB.m_sweep.c.y += invMassB * PY;
+				
+				bodyB.m_sweep.a += invIB * (rBX * PY - rBY * PX);
+				bodyB.SynchronizeTransform();
+			}
+		}
+		
+		
+		
+		return minSeparation > -1.5 * b2Settings.b2_linearSlop;
+	}
+// attributes
+b2ContactSolver.prototype.m_step =  new b2TimeStep();
+b2ContactSolver.prototype.m_allocator =  null;
+b2ContactSolver.prototype.m_constraints =  new Array ();
+b2ContactSolver.prototype.m_constraintCount =  0;

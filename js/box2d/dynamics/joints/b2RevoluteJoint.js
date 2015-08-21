@@ -1,208 +1,117 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-// Point-to-point constraint
-// C = p2 - p1
-// Cdot = v2 - v1
-//      = v2 + cross(w2, r2) - v1 - cross(w1, r1)
-// J = [-I -r1_skew I r2_skew ]
-// Identity used:
-// w k % (rx i + ry j) = w * (-ry i + rx j)
-
-// Motor constraint
-// Cdot = w2 - w1
-// J = [0 0 -1 0 0 1]
-// K = invI1 + invI2
-
-var b2RevoluteJoint = Class.create();
-Object.extend(b2RevoluteJoint.prototype, b2Joint.prototype);
-Object.extend(b2RevoluteJoint.prototype, 
-{
-	GetAnchor1: function(){
-		var tMat = this.m_body1.m_R;
-		return new b2Vec2(	this.m_body1.m_position.x + (tMat.col1.x * this.m_localAnchor1.x + tMat.col2.x * this.m_localAnchor1.y),
-							this.m_body1.m_position.y + (tMat.col1.y * this.m_localAnchor1.x + tMat.col2.y * this.m_localAnchor1.y));
-	},
-	GetAnchor2: function(){
-		var tMat = this.m_body2.m_R;
-		return new b2Vec2(	this.m_body2.m_position.x + (tMat.col1.x * this.m_localAnchor2.x + tMat.col2.x * this.m_localAnchor2.y),
-							this.m_body2.m_position.y + (tMat.col1.y * this.m_localAnchor2.x + tMat.col2.y * this.m_localAnchor2.y));
-	},
-	GetJointAngle: function(){
-		return this.m_body2.m_rotation - this.m_body1.m_rotation;
-	},
-	GetJointSpeed: function(){
-		return this.m_body2.m_angularVelocity - this.m_body1.m_angularVelocity;
-	},
-	GetMotorTorque: function(invTimeStep){
-		return  invTimeStep * this.m_motorImpulse;
-	},
-
-	SetMotorSpeed: function(speed)
-	{
-		this.m_motorSpeed = speed;
-	},
-
-	SetMotorTorque: function(torque)
-	{
-		this.m_maxMotorTorque = torque;
-	},
-
-	GetReactionForce: function(invTimeStep)
-	{
-		var tVec = this.m_ptpImpulse.Copy();
-		tVec.Multiply(invTimeStep);
-		//return invTimeStep * this.m_ptpImpulse;
-		return tVec;
-	},
-
-	GetReactionTorque: function(invTimeStep)
-	{
-		return invTimeStep * this.m_limitImpulse;
-	},
-
-	//--------------- Internals Below -------------------
-
-	initialize: function(def){
-		// The constructor for b2Joint
-		// initialize instance variables for references
-		this.m_node1 = new b2JointNode();
-		this.m_node2 = new b2JointNode();
-		//
-		this.m_type = def.type;
-		this.m_prev = null;
-		this.m_next = null;
-		this.m_body1 = def.body1;
-		this.m_body2 = def.body2;
-		this.m_collideConnected = def.collideConnected;
-		this.m_islandFlag = false;
-		this.m_userData = def.userData;
-		//
-
-		// initialize instance variables for references
-		this.K = new b2Mat22();
-		this.K1 = new b2Mat22();
-		this.K2 = new b2Mat22();
-		this.K3 = new b2Mat22();
-		this.m_localAnchor1 = new b2Vec2();
-		this.m_localAnchor2 = new b2Vec2();
-		this.m_ptpImpulse = new b2Vec2();
-		this.m_ptpMass = new b2Mat22();
-		//
-
-		//super(def);
-
-		var tMat;
-		var tX;
-		var tY;
-
-		//this.m_localAnchor1 = b2Math.b2MulTMV(this.m_body1.m_R, b2Math.SubtractVV( def.anchorPoint, this.m_body1.m_position));
-		tMat = this.m_body1.m_R;
-		tX = def.anchorPoint.x - this.m_body1.m_position.x;
-		tY = def.anchorPoint.y - this.m_body1.m_position.y;
-		this.m_localAnchor1.x = tX * tMat.col1.x + tY * tMat.col1.y;
-		this.m_localAnchor1.y = tX * tMat.col2.x + tY * tMat.col2.y;
-		//this.m_localAnchor2 = b2Math.b2MulTMV(this.m_body2.m_R, b2Math.SubtractVV( def.anchorPoint, this.m_body2.m_position));
-		tMat = this.m_body2.m_R;
-		tX = def.anchorPoint.x - this.m_body2.m_position.x;
-		tY = def.anchorPoint.y - this.m_body2.m_position.y;
-		this.m_localAnchor2.x = tX * tMat.col1.x + tY * tMat.col1.y;
-		this.m_localAnchor2.y = tX * tMat.col2.x + tY * tMat.col2.y;
-
-		this.m_intialAngle = this.m_body2.m_rotation - this.m_body1.m_rotation;
-
-		this.m_ptpImpulse.Set(0.0, 0.0);
+var b2RevoluteJoint = function() {
+b2Joint.prototype.__varz.call(this)
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+extend(b2RevoluteJoint.prototype, b2Joint.prototype)
+b2RevoluteJoint.prototype._super = b2Joint.prototype;
+b2RevoluteJoint.prototype.__constructor = function (def) {
+		this._super.__constructor.apply(this, [def]);
+		
+		
+		this.m_localAnchor1.SetV(def.localAnchorA);
+		
+		this.m_localAnchor2.SetV(def.localAnchorB);
+		
+		this.m_referenceAngle = def.referenceAngle;
+		
+		this.m_impulse.SetZero();
 		this.m_motorImpulse = 0.0;
-		this.m_limitImpulse = 0.0;
-		this.m_limitPositionImpulse = 0.0;
-
+		
 		this.m_lowerAngle = def.lowerAngle;
 		this.m_upperAngle = def.upperAngle;
-		this.m_maxMotorTorque = def.motorTorque;
+		this.m_maxMotorTorque = def.maxMotorTorque;
 		this.m_motorSpeed = def.motorSpeed;
 		this.m_enableLimit = def.enableLimit;
 		this.m_enableMotor = def.enableMotor;
-	},
-
-	// internal vars
-	K: new b2Mat22(),
-	K1: new b2Mat22(),
-	K2: new b2Mat22(),
-	K3: new b2Mat22(),
-	PrepareVelocitySolver: function(){
-		var b1 = this.m_body1;
-		var b2 = this.m_body2;
-
+		this.m_limitState = b2Joint.e_inactiveLimit;
+	}
+b2RevoluteJoint.prototype.__varz = function(){
+this.K =  new b2Mat22();
+this.K1 =  new b2Mat22();
+this.K2 =  new b2Mat22();
+this.K3 =  new b2Mat22();
+this.impulse3 =  new b2Vec3();
+this.impulse2 =  new b2Vec2();
+this.reduced =  new b2Vec2();
+this.m_localAnchor1 =  new b2Vec2();
+this.m_localAnchor2 =  new b2Vec2();
+this.m_impulse =  new b2Vec3();
+this.m_mass =  new b2Mat33();
+}
+// static methods
+// static attributes
+b2RevoluteJoint.tImpulse =  new b2Vec2();
+// methods
+b2RevoluteJoint.prototype.InitVelocityConstraints = function (step) {
+		var bA = this.m_bodyA;
+		var bB = this.m_bodyB;
+		
 		var tMat;
-
-		// Compute the effective mass matrix.
-		//b2Vec2 r1 = b2Mul(b1->m_R, this.m_localAnchor1);
-		tMat = b1.m_R;
-		var r1X = tMat.col1.x * this.m_localAnchor1.x + tMat.col2.x * this.m_localAnchor1.y;
-		var r1Y = tMat.col1.y * this.m_localAnchor1.x + tMat.col2.y * this.m_localAnchor1.y;
-		//b2Vec2 r2 = b2Mul(b2->m_R, this.m_localAnchor2);
-		tMat = b2.m_R;
-		var r2X = tMat.col1.x * this.m_localAnchor2.x + tMat.col2.x * this.m_localAnchor2.y;
-		var r2Y = tMat.col1.y * this.m_localAnchor2.x + tMat.col2.y * this.m_localAnchor2.y;
-
-		// this.K    = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]
-		//      = [1/m1+1/m2     0    ] + invI1 * [r1.y*r1.y -r1.x*r1.y] + invI2 * [r1.y*r1.y -r1.x*r1.y]
-		//        [    0     1/m1+1/m2]           [-r1.x*r1.y r1.x*r1.x]           [-r1.x*r1.y r1.x*r1.x]
-		var invMass1 = b1.m_invMass;
-		var invMass2 = b2.m_invMass;
-		var invI1 = b1.m_invI;
-		var invI2 = b2.m_invI;
-
-		//var this.K1 = new b2Mat22();
-		this.K1.col1.x = invMass1 + invMass2;	this.K1.col2.x = 0.0;
-		this.K1.col1.y = 0.0;					this.K1.col2.y = invMass1 + invMass2;
-
-		//var this.K2 = new b2Mat22();
-		this.K2.col1.x =  invI1 * r1Y * r1Y;	this.K2.col2.x = -invI1 * r1X * r1Y;
-		this.K2.col1.y = -invI1 * r1X * r1Y;	this.K2.col2.y =  invI1 * r1X * r1X;
-
-		//var this.K3 = new b2Mat22();
-		this.K3.col1.x =  invI2 * r2Y * r2Y;	this.K3.col2.x = -invI2 * r2X * r2Y;
-		this.K3.col1.y = -invI2 * r2X * r2Y;	this.K3.col2.y =  invI2 * r2X * r2X;
-
-		//var this.K = b2Math.AddMM(b2Math.AddMM(this.K1, this.K2), this.K3);
-		this.K.SetM(this.K1);
-		this.K.AddM(this.K2);
-		this.K.AddM(this.K3);
-
-		//this.m_ptpMass = this.K.Invert();
-		this.K.Invert(this.m_ptpMass);
-
-		this.m_motorMass = 1.0 / (invI1 + invI2);
-
+		var tX;
+		
+		if (this.m_enableMotor || this.m_enableLimit)
+		{
+			
+			
+			
+		}
+		
+		
+		
+		
+		
+		tMat = bA.m_xf.R;
+		var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+		var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+		tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+		r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+		r1X = tX;
+		
+		tMat = bB.m_xf.R;
+		var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+		var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+		tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+		r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+		r2X = tX;
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		var m1 = bA.m_invMass;
+		var m2 = bB.m_invMass;
+		var i1 = bA.m_invI;
+		var i2 = bB.m_invI;
+		
+		this.m_mass.col1.x = m1 + m2 + r1Y * r1Y * i1 + r2Y * r2Y * i2;
+		this.m_mass.col2.x = -r1Y * r1X * i1 - r2Y * r2X * i2;
+		this.m_mass.col3.x = -r1Y * i1 - r2Y * i2;
+		this.m_mass.col1.y = this.m_mass.col2.x;
+		this.m_mass.col2.y = m1 + m2 + r1X * r1X * i1 + r2X * r2X * i2;
+		this.m_mass.col3.y = r1X * i1 + r2X * i2;
+		this.m_mass.col1.z = this.m_mass.col3.x;
+		this.m_mass.col2.z = this.m_mass.col3.y;
+		this.m_mass.col3.z = i1 + i2;
+		
+		
+		this.m_motorMass = 1.0 / (i1 + i2);
+		
 		if (this.m_enableMotor == false)
 		{
 			this.m_motorImpulse = 0.0;
 		}
-
+		
 		if (this.m_enableLimit)
 		{
-			var jointAngle = b2.m_rotation - b1.m_rotation - this.m_intialAngle;
-			if (b2Math.b2Abs(this.m_upperAngle - this.m_lowerAngle) < 2.0 * b2Settings.b2_angularSlop)
+			
+			var jointAngle = bB.m_sweep.a - bA.m_sweep.a - this.m_referenceAngle;
+			if (b2Math.Abs(this.m_upperAngle - this.m_lowerAngle) < 2.0 * b2Settings.b2_angularSlop)
 			{
 				this.m_limitState = b2Joint.e_equalLimits;
 			}
@@ -210,7 +119,7 @@ Object.extend(b2RevoluteJoint.prototype,
 			{
 				if (this.m_limitState != b2Joint.e_atLowerLimit)
 				{
-					this.m_limitImpulse = 0.0;
+					this.m_impulse.z = 0.0;
 				}
 				this.m_limitState = b2Joint.e_atLowerLimit;
 			}
@@ -218,274 +127,428 @@ Object.extend(b2RevoluteJoint.prototype,
 			{
 				if (this.m_limitState != b2Joint.e_atUpperLimit)
 				{
-					this.m_limitImpulse = 0.0;
+					this.m_impulse.z = 0.0;
 				}
 				this.m_limitState = b2Joint.e_atUpperLimit;
 			}
 			else
 			{
 				this.m_limitState = b2Joint.e_inactiveLimit;
-				this.m_limitImpulse = 0.0;
+				this.m_impulse.z = 0.0;
 			}
 		}
 		else
 		{
-			this.m_limitImpulse = 0.0;
+			this.m_limitState = b2Joint.e_inactiveLimit;
 		}
-
-		// Warm starting.
-		if (b2World.s_enableWarmStarting)
+		
+		
+		if (step.warmStarting)
 		{
-			//b1.m_linearVelocity.Subtract( b2Math.MulFV( invMass1, this.m_ptpImpulse) );
-			b1.m_linearVelocity.x -= invMass1 * this.m_ptpImpulse.x;
-			b1.m_linearVelocity.y -= invMass1 * this.m_ptpImpulse.y;
-			//b1.m_angularVelocity -= invI1 * (b2Math.b2CrossVV(r1, this.m_ptpImpulse) + this.m_motorImpulse + this.m_limitImpulse);
-			b1.m_angularVelocity -= invI1 * ((r1X * this.m_ptpImpulse.y - r1Y * this.m_ptpImpulse.x) + this.m_motorImpulse + this.m_limitImpulse);
-
-			//b2.m_linearVelocity.Add( b2Math.MulFV( invMass2 , this.m_ptpImpulse ));
-			b2.m_linearVelocity.x += invMass2 * this.m_ptpImpulse.x;
-			b2.m_linearVelocity.y += invMass2 * this.m_ptpImpulse.y;
-			//b2.m_angularVelocity += invI2 * (b2Math.b2CrossVV(r2, this.m_ptpImpulse) + this.m_motorImpulse + this.m_limitImpulse);
-			b2.m_angularVelocity += invI2 * ((r2X * this.m_ptpImpulse.y - r2Y * this.m_ptpImpulse.x) + this.m_motorImpulse + this.m_limitImpulse);
+			
+			this.m_impulse.x *= step.dtRatio;
+			this.m_impulse.y *= step.dtRatio;
+			this.m_motorImpulse *= step.dtRatio;
+			
+			var PX = this.m_impulse.x;
+			var PY = this.m_impulse.y;
+			
+			
+			bA.m_linearVelocity.x -= m1 * PX;
+			bA.m_linearVelocity.y -= m1 * PY;
+			
+			bA.m_angularVelocity -= i1 * ((r1X * PY - r1Y * PX) + this.m_motorImpulse + this.m_impulse.z);
+			
+			
+			bB.m_linearVelocity.x += m2 * PX;
+			bB.m_linearVelocity.y += m2 * PY;
+			
+			bB.m_angularVelocity += i2 * ((r2X * PY - r2Y * PX) + this.m_motorImpulse + this.m_impulse.z);
 		}
-		else{
-			this.m_ptpImpulse.SetZero();
+		else
+		{
+			this.m_impulse.SetZero();
 			this.m_motorImpulse = 0.0;
-			this.m_limitImpulse = 0.0;
 		}
-
-		this.m_limitPositionImpulse = 0.0;
-	},
-
-
-	SolveVelocityConstraints: function(step){
-		var b1 = this.m_body1;
-		var b2 = this.m_body2;
-
+	}
+b2RevoluteJoint.prototype.SolveVelocityConstraints = function (step) {
+		var bA = this.m_bodyA;
+		var bB = this.m_bodyB;
+		
 		var tMat;
-
-		//var r1 = b2Math.b2MulMV(b1.m_R, this.m_localAnchor1);
-		tMat = b1.m_R;
-		var r1X = tMat.col1.x * this.m_localAnchor1.x + tMat.col2.x * this.m_localAnchor1.y;
-		var r1Y = tMat.col1.y * this.m_localAnchor1.x + tMat.col2.y * this.m_localAnchor1.y;
-		//var r2 = b2Math.b2MulMV(b2.m_R, this.m_localAnchor2);
-		tMat = b2.m_R;
-		var r2X = tMat.col1.x * this.m_localAnchor2.x + tMat.col2.x * this.m_localAnchor2.y;
-		var r2Y = tMat.col1.y * this.m_localAnchor2.x + tMat.col2.y * this.m_localAnchor2.y;
-
-		var oldLimitImpulse;
-
-		// Solve point-to-point constraint
-		//b2Vec2 ptpCdot = b2.m_linearVelocity + b2Cross(b2.m_angularVelocity, r2) - b1.m_linearVelocity - b2Cross(b1.m_angularVelocity, r1);
-		var ptpCdotX = b2.m_linearVelocity.x + (-b2.m_angularVelocity * r2Y) - b1.m_linearVelocity.x - (-b1.m_angularVelocity * r1Y);
-		var ptpCdotY = b2.m_linearVelocity.y + (b2.m_angularVelocity * r2X) - b1.m_linearVelocity.y - (b1.m_angularVelocity * r1X);
-
-		//b2Vec2 ptpImpulse = -b2Mul(this.m_ptpMass, ptpCdot);
-		var ptpImpulseX = -(this.m_ptpMass.col1.x * ptpCdotX + this.m_ptpMass.col2.x * ptpCdotY);
-		var ptpImpulseY = -(this.m_ptpMass.col1.y * ptpCdotX + this.m_ptpMass.col2.y * ptpCdotY);
-		this.m_ptpImpulse.x += ptpImpulseX;
-		this.m_ptpImpulse.y += ptpImpulseY;
-
-		//b1->m_linearVelocity -= b1->m_invMass * ptpImpulse;
-		b1.m_linearVelocity.x -= b1.m_invMass * ptpImpulseX;
-		b1.m_linearVelocity.y -= b1.m_invMass * ptpImpulseY;
-		//b1->m_angularVelocity -= b1->m_invI * b2Cross(r1, ptpImpulse);
-		b1.m_angularVelocity -= b1.m_invI * (r1X * ptpImpulseY - r1Y * ptpImpulseX);
-
-		//b2->m_linearVelocity += b2->m_invMass * ptpImpulse;
-		b2.m_linearVelocity.x += b2.m_invMass * ptpImpulseX;
-		b2.m_linearVelocity.y += b2.m_invMass * ptpImpulseY;
-		//b2->m_angularVelocity += b2->m_invI * b2Cross(r2, ptpImpulse);
-		b2.m_angularVelocity += b2.m_invI * (r2X * ptpImpulseY - r2Y * ptpImpulseX);
-
+		var tX;
+		
+		var newImpulse;
+		var r1X;
+		var r1Y;
+		var r2X;
+		var r2Y;
+		
+		var v1 = bA.m_linearVelocity;
+		var w1 = bA.m_angularVelocity;
+		var v2 = bB.m_linearVelocity;
+		var w2 = bB.m_angularVelocity;
+		
+		var m1 = bA.m_invMass;
+		var m2 = bB.m_invMass;
+		var i1 = bA.m_invI;
+		var i2 = bB.m_invI;
+		
+		
 		if (this.m_enableMotor && this.m_limitState != b2Joint.e_equalLimits)
 		{
-			var motorCdot = b2.m_angularVelocity - b1.m_angularVelocity - this.m_motorSpeed;
-			var motorImpulse = -this.m_motorMass * motorCdot;
-			var oldMotorImpulse = this.m_motorImpulse;
-			this.m_motorImpulse = b2Math.b2Clamp(this.m_motorImpulse + motorImpulse, -step.dt * this.m_maxMotorTorque, step.dt * this.m_maxMotorTorque);
-			motorImpulse = this.m_motorImpulse - oldMotorImpulse;
-			b1.m_angularVelocity -= b1.m_invI * motorImpulse;
-			b2.m_angularVelocity += b2.m_invI * motorImpulse;
+			var Cdot = w2 - w1 - this.m_motorSpeed;
+			var impulse = this.m_motorMass * ( -Cdot);
+			var oldImpulse = this.m_motorImpulse;
+			var maxImpulse = step.dt * this.m_maxMotorTorque;
+			
+			this.m_motorImpulse = b2Math.Clamp(this.m_motorImpulse + impulse, -maxImpulse, maxImpulse);
+			impulse = this.m_motorImpulse - oldImpulse;
+			
+			w1 -= i1 * impulse;
+			w2 += i2 * impulse;
 		}
-
+		
+		
 		if (this.m_enableLimit && this.m_limitState != b2Joint.e_inactiveLimit)
 		{
-			var limitCdot = b2.m_angularVelocity - b1.m_angularVelocity;
-			var limitImpulse = -this.m_motorMass * limitCdot;
-
+			
+			tMat = bA.m_xf.R;
+			r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+			r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+			r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+			r1X = tX;
+			
+			tMat = bB.m_xf.R;
+			r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+			r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+			r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+			r2X = tX;
+			
+			
+			
+			var Cdot1X = v2.x + (-w2 * r2Y) - v1.x - (-w1 * r1Y);
+			var Cdot1Y = v2.y + (w2 * r2X) - v1.y - (w1 * r1X);
+			var Cdot2 = w2 - w1;
+			
+			this.m_mass.Solve33(this.impulse3, -Cdot1X, -Cdot1Y, -Cdot2);
+			
 			if (this.m_limitState == b2Joint.e_equalLimits)
 			{
-				this.m_limitImpulse += limitImpulse;
+				this.m_impulse.Add(this.impulse3);
 			}
 			else if (this.m_limitState == b2Joint.e_atLowerLimit)
 			{
-				oldLimitImpulse = this.m_limitImpulse;
-				this.m_limitImpulse = b2Math.b2Max(this.m_limitImpulse + limitImpulse, 0.0);
-				limitImpulse = this.m_limitImpulse - oldLimitImpulse;
+				newImpulse = this.m_impulse.z + this.impulse3.z;
+				if (newImpulse < 0.0)
+				{
+					this.m_mass.Solve22(this.reduced, -Cdot1X, -Cdot1Y);
+					this.impulse3.x = this.reduced.x;
+					this.impulse3.y = this.reduced.y;
+					this.impulse3.z = -this.m_impulse.z;
+					this.m_impulse.x += this.reduced.x;
+					this.m_impulse.y += this.reduced.y;
+					this.m_impulse.z = 0.0;
+				}
 			}
 			else if (this.m_limitState == b2Joint.e_atUpperLimit)
 			{
-				oldLimitImpulse = this.m_limitImpulse;
-				this.m_limitImpulse = b2Math.b2Min(this.m_limitImpulse + limitImpulse, 0.0);
-				limitImpulse = this.m_limitImpulse - oldLimitImpulse;
+				newImpulse = this.m_impulse.z + this.impulse3.z;
+				if (newImpulse > 0.0)
+				{
+					this.m_mass.Solve22(this.reduced, -Cdot1X, -Cdot1Y);
+					this.impulse3.x = this.reduced.x;
+					this.impulse3.y = this.reduced.y;
+					this.impulse3.z = -this.m_impulse.z;
+					this.m_impulse.x += this.reduced.x;
+					this.m_impulse.y += this.reduced.y;
+					this.m_impulse.z = 0.0;
+				}
 			}
-
-			b1.m_angularVelocity -= b1.m_invI * limitImpulse;
-			b2.m_angularVelocity += b2.m_invI * limitImpulse;
+			
+			v1.x -= m1 * this.impulse3.x;
+			v1.y -= m1 * this.impulse3.y;
+			w1 -= i1 * (r1X * this.impulse3.y - r1Y * this.impulse3.x + this.impulse3.z);
+			
+			v2.x += m2 * this.impulse3.x;
+			v2.y += m2 * this.impulse3.y;
+			w2 += i2 * (r2X * this.impulse3.y - r2Y * this.impulse3.x + this.impulse3.z);
 		}
-	},
-
-
-	SolvePositionConstraints: function(){
-
+		else
+		{
+			
+			tMat = bA.m_xf.R;
+			r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+			r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+			r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+			r1X = tX;
+			
+			tMat = bB.m_xf.R;
+			r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+			r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+			r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+			r2X = tX;
+			
+			
+			var CdotX = v2.x + ( -w2 * r2Y) - v1.x - ( -w1 * r1Y);
+			var CdotY = v2.y + (w2 * r2X) - v1.y - (w1 * r1X);
+			
+			this.m_mass.Solve22(this.impulse2, -CdotX, -CdotY);
+			
+			this.m_impulse.x += this.impulse2.x;
+			this.m_impulse.y += this.impulse2.y;
+			
+			v1.x -= m1 * this.impulse2.x;
+			v1.y -= m1 * this.impulse2.y;
+			
+			w1 -= i1 * ( r1X * this.impulse2.y - r1Y * this.impulse2.x);
+			
+			v2.x += m2 * this.impulse2.x;
+			v2.y += m2 * this.impulse2.y;
+			
+			w2 += i2 * ( r2X * this.impulse2.y - r2Y * this.impulse2.x);
+		}
+		
+		bA.m_linearVelocity.SetV(v1);
+		bA.m_angularVelocity = w1;
+		bB.m_linearVelocity.SetV(v2);
+		bB.m_angularVelocity = w2;
+	}
+b2RevoluteJoint.prototype.SolvePositionConstraints = function (baumgarte) {
+		
+		
+		
 		var oldLimitImpulse;
-		var limitC;
-
-		var b1 = this.m_body1;
-		var b2 = this.m_body2;
-
-		var positionError = 0.0;
-
+		var C;
+		
 		var tMat;
-
-		// Solve point-to-point position error.
-		//var r1 = b2Math.b2MulMV(b1.m_R, this.m_localAnchor1);
-		tMat = b1.m_R;
-		var r1X = tMat.col1.x * this.m_localAnchor1.x + tMat.col2.x * this.m_localAnchor1.y;
-		var r1Y = tMat.col1.y * this.m_localAnchor1.x + tMat.col2.y * this.m_localAnchor1.y;
-		//var r2 = b2Math.b2MulMV(b2.m_R, this.m_localAnchor2);
-		tMat = b2.m_R;
-		var r2X = tMat.col1.x * this.m_localAnchor2.x + tMat.col2.x * this.m_localAnchor2.y;
-		var r2Y = tMat.col1.y * this.m_localAnchor2.x + tMat.col2.y * this.m_localAnchor2.y;
-
-		//b2Vec2 p1 = b1->m_position + r1;
-		var p1X = b1.m_position.x + r1X;
-		var p1Y = b1.m_position.y + r1Y;
-		//b2Vec2 p2 = b2->m_position + r2;
-		var p2X = b2.m_position.x + r2X;
-		var p2Y = b2.m_position.y + r2Y;
-
-		//b2Vec2 ptpC = p2 - p1;
-		var ptpCX = p2X - p1X;
-		var ptpCY = p2Y - p1Y;
-
-		//float32 positionError = ptpC.Length();
-		positionError = Math.sqrt(ptpCX*ptpCX + ptpCY*ptpCY);
-
-		// Prevent overly large corrections.
-		//b2Vec2 dpMax(b2_maxLinearCorrection, b2_maxLinearCorrection);
-		//ptpC = b2Clamp(ptpC, -dpMax, dpMax);
-
-		//float32 invMass1 = b1->m_invMass, invMass2 = b2->m_invMass;
-		var invMass1 = b1.m_invMass;
-		var invMass2 = b2.m_invMass;
-		//float32 invI1 = b1->m_invI, invI2 = b2->m_invI;
-		var invI1 = b1.m_invI;
-		var invI2 = b2.m_invI;
-
-		//b2Mat22 this.K1;
-		this.K1.col1.x = invMass1 + invMass2;	this.K1.col2.x = 0.0;
-		this.K1.col1.y = 0.0;					this.K1.col2.y = invMass1 + invMass2;
-
-		//b2Mat22 this.K2;
-		this.K2.col1.x =  invI1 * r1Y * r1Y;	this.K2.col2.x = -invI1 * r1X * r1Y;
-		this.K2.col1.y = -invI1 * r1X * r1Y;	this.K2.col2.y =  invI1 * r1X * r1X;
-
-		//b2Mat22 this.K3;
-		this.K3.col1.x =  invI2 * r2Y * r2Y;		this.K3.col2.x = -invI2 * r2X * r2Y;
-		this.K3.col1.y = -invI2 * r2X * r2Y;		this.K3.col2.y =  invI2 * r2X * r2X;
-
-		//b2Mat22 this.K = this.K1 + this.K2 + this.K3;
-		this.K.SetM(this.K1);
-		this.K.AddM(this.K2);
-		this.K.AddM(this.K3);
-		//b2Vec2 impulse = this.K.Solve(-ptpC);
-		this.K.Solve(b2RevoluteJoint.tImpulse, -ptpCX, -ptpCY);
-		var impulseX = b2RevoluteJoint.tImpulse.x;
-		var impulseY = b2RevoluteJoint.tImpulse.y;
-
-		//b1.m_position -= b1.m_invMass * impulse;
-		b1.m_position.x -= b1.m_invMass * impulseX;
-		b1.m_position.y -= b1.m_invMass * impulseY;
-		//b1.m_rotation -= b1.m_invI * b2Cross(r1, impulse);
-		b1.m_rotation -= b1.m_invI * (r1X * impulseY - r1Y * impulseX);
-		b1.m_R.Set(b1.m_rotation);
-
-		//b2.m_position += b2.m_invMass * impulse;
-		b2.m_position.x += b2.m_invMass * impulseX;
-		b2.m_position.y += b2.m_invMass * impulseY;
-		//b2.m_rotation += b2.m_invI * b2Cross(r2, impulse);
-		b2.m_rotation += b2.m_invI * (r2X * impulseY - r2Y * impulseX);
-		b2.m_R.Set(b2.m_rotation);
-
-
-		// Handle limits.
+		
+		var bA = this.m_bodyA;
+		var bB = this.m_bodyB;
+		
 		var angularError = 0.0;
-
+		var positionError = 0.0;
+		
+		var tX;
+		
+		var impulseX;
+		var impulseY;
+		
+		
 		if (this.m_enableLimit && this.m_limitState != b2Joint.e_inactiveLimit)
 		{
-			var angle = b2.m_rotation - b1.m_rotation - this.m_intialAngle;
+			var angle = bB.m_sweep.a - bA.m_sweep.a - this.m_referenceAngle;
 			var limitImpulse = 0.0;
-
+			
 			if (this.m_limitState == b2Joint.e_equalLimits)
 			{
-				// Prevent large angular corrections
-				limitC = b2Math.b2Clamp(angle, -b2Settings.b2_maxAngularCorrection, b2Settings.b2_maxAngularCorrection);
-				limitImpulse = -this.m_motorMass * limitC;
-				angularError = b2Math.b2Abs(limitC);
+				
+				C = b2Math.Clamp(angle - this.m_lowerAngle, -b2Settings.b2_maxAngularCorrection, b2Settings.b2_maxAngularCorrection);
+				limitImpulse = -this.m_motorMass * C;
+				angularError = b2Math.Abs(C);
 			}
 			else if (this.m_limitState == b2Joint.e_atLowerLimit)
 			{
-				limitC = angle - this.m_lowerAngle;
-				angularError = b2Math.b2Max(0.0, -limitC);
-
-				// Prevent large angular corrections and allow some slop.
-				limitC = b2Math.b2Clamp(limitC + b2Settings.b2_angularSlop, -b2Settings.b2_maxAngularCorrection, 0.0);
-				limitImpulse = -this.m_motorMass * limitC;
-				oldLimitImpulse = this.m_limitPositionImpulse;
-				this.m_limitPositionImpulse = b2Math.b2Max(this.m_limitPositionImpulse + limitImpulse, 0.0);
-				limitImpulse = this.m_limitPositionImpulse - oldLimitImpulse;
+				C = angle - this.m_lowerAngle;
+				angularError = -C;
+				
+				
+				C = b2Math.Clamp(C + b2Settings.b2_angularSlop, -b2Settings.b2_maxAngularCorrection, 0.0);
+				limitImpulse = -this.m_motorMass * C;
 			}
 			else if (this.m_limitState == b2Joint.e_atUpperLimit)
 			{
-				limitC = angle - this.m_upperAngle;
-				angularError = b2Math.b2Max(0.0, limitC);
-
-				// Prevent large angular corrections and allow some slop.
-				limitC = b2Math.b2Clamp(limitC - b2Settings.b2_angularSlop, 0.0, b2Settings.b2_maxAngularCorrection);
-				limitImpulse = -this.m_motorMass * limitC;
-				oldLimitImpulse = this.m_limitPositionImpulse;
-				this.m_limitPositionImpulse = b2Math.b2Min(this.m_limitPositionImpulse + limitImpulse, 0.0);
-				limitImpulse = this.m_limitPositionImpulse - oldLimitImpulse;
+				C = angle - this.m_upperAngle;
+				angularError = C;
+				
+				
+				C = b2Math.Clamp(C - b2Settings.b2_angularSlop, 0.0, b2Settings.b2_maxAngularCorrection);
+				limitImpulse = -this.m_motorMass * C;
 			}
-
-			b1.m_rotation -= b1.m_invI * limitImpulse;
-			b1.m_R.Set(b1.m_rotation);
-			b2.m_rotation += b2.m_invI * limitImpulse;
-			b2.m_R.Set(b2.m_rotation);
+			
+			bA.m_sweep.a -= bA.m_invI * limitImpulse;
+			bB.m_sweep.a += bB.m_invI * limitImpulse;
+			
+			bA.SynchronizeTransform();
+			bB.SynchronizeTransform();
 		}
-
+		
+		
+		{
+			
+			tMat = bA.m_xf.R;
+			var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+			var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+			r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+			r1X = tX;
+			
+			tMat = bB.m_xf.R;
+			var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+			var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+			tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+			r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+			r2X = tX;
+			
+			
+			var CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+			var CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+			var CLengthSquared = CX * CX + CY * CY;
+			var CLength = Math.sqrt(CLengthSquared);
+			positionError = CLength;
+			
+			var invMass1 = bA.m_invMass;
+			var invMass2 = bB.m_invMass;
+			var invI1 = bA.m_invI;
+			var invI2 = bB.m_invI;
+			
+			
+			var k_allowedStretch = 10.0 * b2Settings.b2_linearSlop;
+			if (CLengthSquared > k_allowedStretch * k_allowedStretch)
+			{
+				
+				
+				var uX = CX / CLength;
+				var uY = CY / CLength;
+				var k = invMass1 + invMass2;
+				
+				var m = 1.0 / k;
+				impulseX = m * ( -CX);
+				impulseY = m * ( -CY);
+				var k_beta = 0.5;
+				bA.m_sweep.c.x -= k_beta * invMass1 * impulseX;
+				bA.m_sweep.c.y -= k_beta * invMass1 * impulseY;
+				bB.m_sweep.c.x += k_beta * invMass2 * impulseX;
+				bB.m_sweep.c.y += k_beta * invMass2 * impulseY;
+				
+				
+				CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+				CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+			}
+			
+			
+			this.K1.col1.x = invMass1 + invMass2;	this.K1.col2.x = 0.0;
+			this.K1.col1.y = 0.0;					this.K1.col2.y = invMass1 + invMass2;
+			
+			
+			this.K2.col1.x = invI1 * r1Y * r1Y;	this.K2.col2.x = -invI1 * r1X * r1Y;
+			this.K2.col1.y = -invI1 * r1X * r1Y;	this.K2.col2.y = invI1 * r1X * r1X;
+			
+			
+			this.K3.col1.x = invI2 * r2Y * r2Y;		this.K3.col2.x = -invI2 * r2X * r2Y;
+			this.K3.col1.y = -invI2 * r2X * r2Y;		this.K3.col2.y = invI2 * r2X * r2X;
+			
+			
+			this.K.SetM(this.K1);
+			this.K.AddM(this.K2);
+			this.K.AddM(this.K3);
+			
+			this.K.Solve(b2RevoluteJoint.tImpulse, -CX, -CY);
+			impulseX = b2RevoluteJoint.tImpulse.x;
+			impulseY = b2RevoluteJoint.tImpulse.y;
+			
+			
+			bA.m_sweep.c.x -= bA.m_invMass * impulseX;
+			bA.m_sweep.c.y -= bA.m_invMass * impulseY;
+			
+			bA.m_sweep.a -= bA.m_invI * (r1X * impulseY - r1Y * impulseX);
+			
+			
+			bB.m_sweep.c.x += bB.m_invMass * impulseX;
+			bB.m_sweep.c.y += bB.m_invMass * impulseY;
+			
+			bB.m_sweep.a += bB.m_invI * (r2X * impulseY - r2Y * impulseX);
+			
+			bA.SynchronizeTransform();
+			bB.SynchronizeTransform();
+		}
+		
 		return positionError <= b2Settings.b2_linearSlop && angularError <= b2Settings.b2_angularSlop;
-	},
-
-	m_localAnchor1: new b2Vec2(),
-	m_localAnchor2: new b2Vec2(),
-	m_ptpImpulse: new b2Vec2(),
-	m_motorImpulse: null,
-	m_limitImpulse: null,
-	m_limitPositionImpulse: null,
-
-	m_ptpMass: new b2Mat22(),
-	m_motorMass: null,
-	m_intialAngle: null,
-	m_lowerAngle: null,
-	m_upperAngle: null,
-	m_maxMotorTorque: null,
-	m_motorSpeed: null,
-
-	m_enableLimit: null,
-	m_enableMotor: null,
-	m_limitState: 0});
-
-b2RevoluteJoint.tImpulse = new b2Vec2();
+	}
+b2RevoluteJoint.prototype.GetAnchorA = function () {
+		return this.m_bodyA.GetWorldPoint(this.m_localAnchor1);
+	}
+b2RevoluteJoint.prototype.GetAnchorB = function () {
+		return this.m_bodyB.GetWorldPoint(this.m_localAnchor2);
+	}
+b2RevoluteJoint.prototype.GetReactionForce = function (inv_dt) {
+		return new b2Vec2(inv_dt * this.m_impulse.x, inv_dt * this.m_impulse.y);
+	}
+b2RevoluteJoint.prototype.GetReactionTorque = function (inv_dt) {
+		return inv_dt * this.m_impulse.z;
+	}
+b2RevoluteJoint.prototype.GetJointAngle = function () {
+		
+		
+		return this.m_bodyB.m_sweep.a - this.m_bodyA.m_sweep.a - this.m_referenceAngle;
+	}
+b2RevoluteJoint.prototype.GetJointSpeed = function () {
+		
+		
+		return this.m_bodyB.m_angularVelocity - this.m_bodyA.m_angularVelocity;
+	}
+b2RevoluteJoint.prototype.IsLimitEnabled = function () {
+		return this.m_enableLimit;
+	}
+b2RevoluteJoint.prototype.EnableLimit = function (flag) {
+		this.m_enableLimit = flag;
+	}
+b2RevoluteJoint.prototype.GetLowerLimit = function () {
+		return this.m_lowerAngle;
+	}
+b2RevoluteJoint.prototype.GetUpperLimit = function () {
+		return this.m_upperAngle;
+	}
+b2RevoluteJoint.prototype.SetLimits = function (lower, upper) {
+		
+		this.m_lowerAngle = lower;
+		this.m_upperAngle = upper;
+	}
+b2RevoluteJoint.prototype.IsMotorEnabled = function () {
+		this.m_bodyA.SetAwake(true);
+		this.m_bodyB.SetAwake(true);
+		return this.m_enableMotor;
+	}
+b2RevoluteJoint.prototype.EnableMotor = function (flag) {
+		this.m_enableMotor = flag;
+	}
+b2RevoluteJoint.prototype.SetMotorSpeed = function (speed) {
+		this.m_bodyA.SetAwake(true);
+		this.m_bodyB.SetAwake(true);
+		this.m_motorSpeed = speed;
+	}
+b2RevoluteJoint.prototype.GetMotorSpeed = function () {
+		return this.m_motorSpeed;
+	}
+b2RevoluteJoint.prototype.SetMaxMotorTorque = function (torque) {
+		this.m_maxMotorTorque = torque;
+	}
+b2RevoluteJoint.prototype.GetMotorTorque = function () {
+		return this.m_maxMotorTorque;
+	}
+// attributes
+b2RevoluteJoint.prototype.K =  new b2Mat22();
+b2RevoluteJoint.prototype.K1 =  new b2Mat22();
+b2RevoluteJoint.prototype.K2 =  new b2Mat22();
+b2RevoluteJoint.prototype.K3 =  new b2Mat22();
+b2RevoluteJoint.prototype.impulse3 =  new b2Vec3();
+b2RevoluteJoint.prototype.impulse2 =  new b2Vec2();
+b2RevoluteJoint.prototype.reduced =  new b2Vec2();
+b2RevoluteJoint.prototype.m_localAnchor1 =  new b2Vec2();
+b2RevoluteJoint.prototype.m_localAnchor2 =  new b2Vec2();
+b2RevoluteJoint.prototype.m_impulse =  new b2Vec3();
+b2RevoluteJoint.prototype.m_motorImpulse =  null;
+b2RevoluteJoint.prototype.m_mass =  new b2Mat33();
+b2RevoluteJoint.prototype.m_motorMass =  null;
+b2RevoluteJoint.prototype.m_enableMotor =  null;
+b2RevoluteJoint.prototype.m_maxMotorTorque =  null;
+b2RevoluteJoint.prototype.m_motorSpeed =  null;
+b2RevoluteJoint.prototype.m_enableLimit =  null;
+b2RevoluteJoint.prototype.m_referenceAngle =  null;
+b2RevoluteJoint.prototype.m_lowerAngle =  null;
+b2RevoluteJoint.prototype.m_upperAngle =  null;
+b2RevoluteJoint.prototype.m_limitState =  0;

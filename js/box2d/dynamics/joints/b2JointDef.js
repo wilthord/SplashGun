@@ -1,40 +1,22 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-var b2JointDef = Class.create();
-b2JointDef.prototype = 
-{
-
-	initialize: function()
-	{
+var b2JointDef = function() {
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+b2JointDef.prototype.__constructor = function () {
 		this.type = b2Joint.e_unknownJoint;
 		this.userData = null;
-		this.body1 = null;
-		this.body2 = null;
+		this.bodyA = null;
+		this.bodyB = null;
 		this.collideConnected = false;
-	},
-
-	type: 0,
-	userData: null,
-	body1: null,
-	body2: null,
-	collideConnected: null}
+	}
+b2JointDef.prototype.__varz = function(){
+}
+// static methods
+// static attributes
+// methods
+// attributes
+b2JointDef.prototype.type =  0;
+b2JointDef.prototype.userData =  null;
+b2JointDef.prototype.bodyA =  null;
+b2JointDef.prototype.bodyB =  null;
+b2JointDef.prototype.collideConnected =  null;

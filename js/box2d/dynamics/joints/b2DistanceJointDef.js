@@ -1,49 +1,41 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-var b2DistanceJointDef = Class.create();
-Object.extend(b2DistanceJointDef.prototype, b2JointDef.prototype);
-Object.extend(b2DistanceJointDef.prototype, 
-{
-	initialize: function()
-	{
-		// The constructor for b2JointDef
-		this.type = b2Joint.e_unknownJoint;
-		this.userData = null;
-		this.body1 = null;
-		this.body2 = null;
-		this.collideConnected = false;
-		//
-
-		// initialize instance variables for references
-		this.anchorPoint1 = new b2Vec2();
-		this.anchorPoint2 = new b2Vec2();
-		//
-
+var b2DistanceJointDef = function() {
+b2JointDef.prototype.__varz.call(this)
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+extend(b2DistanceJointDef.prototype, b2JointDef.prototype)
+b2DistanceJointDef.prototype._super = b2JointDef.prototype;
+b2DistanceJointDef.prototype.__constructor = function () {
+		this._super.__constructor.apply(this, arguments);
 		this.type = b2Joint.e_distanceJoint;
-		//this.anchorPoint1.Set(0.0, 0.0);
-		//this.anchorPoint2.Set(0.0, 0.0);
-	},
-
-	anchorPoint1: new b2Vec2(),
-	anchorPoint2: new b2Vec2()});
-
+		
+		
+		this.length = 1.0;
+		this.frequencyHz = 0.0;
+		this.dampingRatio = 0.0;
+	}
+b2DistanceJointDef.prototype.__varz = function(){
+this.localAnchorA =  new b2Vec2();
+this.localAnchorB =  new b2Vec2();
+}
+// static methods
+// static attributes
+// methods
+b2DistanceJointDef.prototype.Initialize = function (bA, bB,
+								anchorA, anchorB) {
+		this.bodyA = bA;
+		this.bodyB = bB;
+		this.localAnchorA.SetV( this.bodyA.GetLocalPoint(anchorA));
+		this.localAnchorB.SetV( this.bodyB.GetLocalPoint(anchorB));
+		var dX = anchorB.x - anchorA.x;
+		var dY = anchorB.y - anchorA.y;
+		this.length = Math.sqrt(dX*dX + dY*dY);
+		this.frequencyHz = 0.0;
+		this.dampingRatio = 0.0;
+	}
+// attributes
+b2DistanceJointDef.prototype.localAnchorA =  new b2Vec2();
+b2DistanceJointDef.prototype.localAnchorB =  new b2Vec2();
+b2DistanceJointDef.prototype.length =  null;
+b2DistanceJointDef.prototype.frequencyHz =  null;
+b2DistanceJointDef.prototype.dampingRatio =  null;

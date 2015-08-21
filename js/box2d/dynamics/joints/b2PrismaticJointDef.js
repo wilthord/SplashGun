@@ -1,56 +1,48 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-var b2PrismaticJointDef = Class.create();
-Object.extend(b2PrismaticJointDef.prototype, b2JointDef.prototype);
-Object.extend(b2PrismaticJointDef.prototype, 
-{
-	initialize: function()
-	{
-		// The constructor for b2JointDef
-		this.type = b2Joint.e_unknownJoint;
-		this.userData = null;
-		this.body1 = null;
-		this.body2 = null;
-		this.collideConnected = false;
-		//
-
+var b2PrismaticJointDef = function() {
+b2JointDef.prototype.__varz.call(this)
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+extend(b2PrismaticJointDef.prototype, b2JointDef.prototype)
+b2PrismaticJointDef.prototype._super = b2JointDef.prototype;
+b2PrismaticJointDef.prototype.__constructor = function () {
+		this._super.__constructor.apply(this, arguments);
 		this.type = b2Joint.e_prismaticJoint;
-		this.anchorPoint = new b2Vec2(0.0, 0.0);
-		this.axis = new b2Vec2(0.0, 0.0);
+		
+		
+		this.localAxisA.Set(1.0, 0.0);
+		this.referenceAngle = 0.0;
+		this.enableLimit = false;
 		this.lowerTranslation = 0.0;
 		this.upperTranslation = 0.0;
-		this.motorForce = 0.0;
-		this.motorSpeed = 0.0;
-		this.enableLimit = false;
 		this.enableMotor = false;
-	},
-
-	anchorPoint: null,
-	axis: null,
-	lowerTranslation: null,
-	upperTranslation: null,
-	motorForce: null,
-	motorSpeed: null,
-	enableLimit: null,
-	enableMotor: null});
-
+		this.maxMotorForce = 0.0;
+		this.motorSpeed = 0.0;
+	}
+b2PrismaticJointDef.prototype.__varz = function(){
+this.localAnchorA =  new b2Vec2();
+this.localAnchorB =  new b2Vec2();
+this.localAxisA =  new b2Vec2();
+}
+// static methods
+// static attributes
+// methods
+b2PrismaticJointDef.prototype.Initialize = function (bA, bB, anchor, axis) {
+		this.bodyA = bA;
+		this.bodyB = bB;
+		this.localAnchorA = this.bodyA.GetLocalPoint(anchor);
+		this.localAnchorB = this.bodyB.GetLocalPoint(anchor);
+		this.localAxisA = this.bodyA.GetLocalVector(axis);
+		this.referenceAngle = this.bodyB.GetAngle() - this.bodyA.GetAngle();
+	}
+// attributes
+b2PrismaticJointDef.prototype.localAnchorA =  new b2Vec2();
+b2PrismaticJointDef.prototype.localAnchorB =  new b2Vec2();
+b2PrismaticJointDef.prototype.localAxisA =  new b2Vec2();
+b2PrismaticJointDef.prototype.referenceAngle =  null;
+b2PrismaticJointDef.prototype.enableLimit =  null;
+b2PrismaticJointDef.prototype.lowerTranslation =  null;
+b2PrismaticJointDef.prototype.upperTranslation =  null;
+b2PrismaticJointDef.prototype.enableMotor =  null;
+b2PrismaticJointDef.prototype.maxMotorForce =  null;
+b2PrismaticJointDef.prototype.motorSpeed =  null;

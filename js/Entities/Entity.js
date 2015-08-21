@@ -1,8 +1,8 @@
 EntityClass = function(){
     
-    this.pos = {x:0,y:0},
+    this.pos = new b2Vec2(0,0),
     this.size = {x:0,y:0},
-    this.last = {x:0,y:0},
+    this.last = new b2Vec2(0,0),
     this.currSpriteName = null;
     this.zindex = 0;                  //entero que indica en que orden se pintará la entidad
 

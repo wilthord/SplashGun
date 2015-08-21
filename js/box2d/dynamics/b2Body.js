@@ -1,193 +1,757 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-
-
-
-// A rigid body. Internal computation are done in terms
-// of the center of mass position. The center of mass may
-// be offset from the body's origin.
-var b2Body = Class.create();
-b2Body.prototype = 
-{
-	// Set the position of the body's origin and rotation (radians).
-	// This breaks any contacts and wakes the other bodies.
-	SetOriginPosition: function(position, rotation){
-		if (this.IsFrozen())
+var b2Body = function() {
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+b2Body.prototype.__constructor = function (bd, world) {
+		
+		
+		
+ 		
+ 		
+ 		
+ 		
+ 		
+ 		
+		
+		this.m_flags = 0;
+		
+		if (bd.bullet )
+		{
+			this.m_flags |= b2Body.e_bulletFlag;
+		}
+		if (bd.fixedRotation)
+		{
+			this.m_flags |= b2Body.e_fixedRotationFlag;
+		}
+		if (bd.allowSleep)
+		{
+			this.m_flags |= b2Body.e_allowSleepFlag;
+		}
+		if (bd.awake)
+		{
+			this.m_flags |= b2Body.e_awakeFlag;
+		}
+		if (bd.active)
+		{
+			this.m_flags |= b2Body.e_activeFlag;
+		}
+		
+		this.m_world = world;
+		
+		this.m_xf.position.SetV(bd.position);
+		this.m_xf.R.Set(bd.angle);
+		
+		this.m_sweep.localCenter.SetZero();
+		this.m_sweep.t0 = 1.0;
+		this.m_sweep.a0 = this.m_sweep.a = bd.angle;
+		
+		
+		
+		var tMat = this.m_xf.R;
+		var tVec = this.m_sweep.localCenter;
+		
+		this.m_sweep.c.x = (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+		
+		this.m_sweep.c.y = (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+		
+		this.m_sweep.c.x += this.m_xf.position.x;
+		this.m_sweep.c.y += this.m_xf.position.y;
+		
+		this.m_sweep.c0.SetV(this.m_sweep.c);
+		
+		this.m_jointList = null;
+		this.m_controllerList = null;
+		this.m_contactList = null;
+		this.m_controllerCount = 0;
+		this.m_prev = null;
+		this.m_next = null;
+		
+		this.m_linearVelocity.SetV(bd.linearVelocity);
+		this.m_angularVelocity = bd.angularVelocity;
+		
+		this.m_linearDamping = bd.linearDamping;
+		this.m_angularDamping = bd.angularDamping;
+		
+		this.m_force.Set(0.0, 0.0);
+		this.m_torque = 0.0;
+		
+		this.m_sleepTime = 0.0;
+		
+		this.m_type = bd.type;
+		
+		if (this.m_type == b2Body.b2_dynamicBody)
+		{
+			this.m_mass = 1.0;
+			this.m_invMass = 1.0;
+		}
+		else
+		{
+			this.m_mass = 0.0;
+			this.m_invMass = 0.0;
+		}
+		
+		this.m_I = 0.0;
+		this.m_invI = 0.0;
+		
+		this.m_inertiaScale = bd.inertiaScale;
+		
+		this.m_userData = bd.userData;
+		
+		this.m_fixtureList = null;
+		this.m_fixtureCount = 0;
+	}
+b2Body.prototype.__varz = function(){
+this.m_xf =  new b2Transform();
+this.m_sweep =  new b2Sweep();
+this.m_linearVelocity =  new b2Vec2();
+this.m_force =  new b2Vec2();
+}
+// static methods
+// static attributes
+b2Body.b2_staticBody =  0;
+b2Body.b2_kinematicBody =  1;
+b2Body.b2_dynamicBody =  2;
+b2Body.s_xf1 =  new b2Transform();
+b2Body.e_islandFlag =  0x0001;
+b2Body.e_awakeFlag =  0x0002;
+b2Body.e_allowSleepFlag =  0x0004;
+b2Body.e_bulletFlag =  0x0008;
+b2Body.e_fixedRotationFlag =  0x0010;
+b2Body.e_activeFlag =  0x0020;
+// methods
+b2Body.prototype.connectEdges = function (s1, s2, angle1) {
+		var angle2 = Math.atan2(s2.GetDirectionVector().y, s2.GetDirectionVector().x);
+		var coreOffset = Math.tan((angle2 - angle1) * 0.5);
+		var core = b2Math.MulFV(coreOffset, s2.GetDirectionVector());
+		core = b2Math.SubtractVV(core, s2.GetNormalVector());
+		core = b2Math.MulFV(b2Settings.b2_toiSlop, core);
+		core = b2Math.AddVV(core, s2.GetVertex1());
+		var cornerDir = b2Math.AddVV(s1.GetDirectionVector(), s2.GetDirectionVector());
+		cornerDir.Normalize();
+		var convex = b2Math.Dot(s1.GetDirectionVector(), s2.GetNormalVector()) > 0.0;
+		s1.SetNextEdge(s2, core, cornerDir, convex);
+		s2.SetPrevEdge(s1, core, cornerDir, convex);
+		return angle2;
+	}
+b2Body.prototype.SynchronizeFixtures = function () {
+		
+		var xf1 = b2Body.s_xf1;
+		xf1.R.Set(this.m_sweep.a0);
+		
+		var tMat = xf1.R;
+		var tVec = this.m_sweep.localCenter;
+		xf1.position.x = this.m_sweep.c0.x - (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+		xf1.position.y = this.m_sweep.c0.y - (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+		
+		var f;
+		var broadPhase = this.m_world.m_contactManager.m_broadPhase;
+		for (f = this.m_fixtureList; f; f = f.m_next)
+		{
+			f.Synchronize(broadPhase, xf1, this.m_xf);
+		}
+	}
+b2Body.prototype.SynchronizeTransform = function () {
+		this.m_xf.R.Set(this.m_sweep.a);
+		
+		var tMat = this.m_xf.R;
+		var tVec = this.m_sweep.localCenter;
+		this.m_xf.position.x = this.m_sweep.c.x - (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+		this.m_xf.position.y = this.m_sweep.c.y - (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+	}
+b2Body.prototype.ShouldCollide = function (other) {
+		
+		if (this.m_type != b2Body.b2_dynamicBody && other.m_type != b2Body.b2_dynamicBody )
+		{
+			return false;
+		}
+		
+		for (var jn = this.m_jointList; jn; jn = jn.next)
+		{
+			if (jn.other == other)
+			if (jn.joint.m_collideConnected == false)
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+b2Body.prototype.Advance = function (t) {
+		
+		this.m_sweep.Advance(t);
+		this.m_sweep.c.SetV(this.m_sweep.c0);
+		this.m_sweep.a = this.m_sweep.a0;
+		this.SynchronizeTransform();
+	}
+b2Body.prototype.CreateFixture = function (def) {
+		
+		if (this.m_world.IsLocked() == true)
+		{
+			return null;
+		}
+		
+		
+		
+		
+		
+		
+		var fixture = new b2Fixture();
+		fixture.Create(this, this.m_xf, def);
+		
+		if ( this.m_flags & b2Body.e_activeFlag )
+		{
+			var broadPhase = this.m_world.m_contactManager.m_broadPhase;
+			fixture.CreateProxy(broadPhase, this.m_xf);
+		}
+		
+		fixture.m_next = this.m_fixtureList;
+		this.m_fixtureList = fixture;
+		++this.m_fixtureCount;
+		
+		fixture.m_body = this;
+		
+		
+		if (fixture.m_density > 0.0)
+		{
+			this.ResetMassData();
+		}
+		
+		
+		
+		this.m_world.m_flags |= b2World.e_newFixture;
+		
+		return fixture;
+	}
+b2Body.prototype.CreateFixture2 = function (shape, density) {
+		var def = new b2FixtureDef();
+		def.shape = shape;
+		def.density = density;
+		
+		return this.CreateFixture(def);
+	}
+b2Body.prototype.DestroyFixture = function (fixture) {
+		
+		if (this.m_world.IsLocked() == true)
 		{
 			return;
 		}
-
-		this.m_rotation = rotation;
-		this.m_R.Set(this.m_rotation);
-		this.m_position = b2Math.AddVV(position , b2Math.b2MulMV(this.m_R, this.m_center));
-
-		this.m_position0.SetV(this.m_position);
-		this.m_rotation0 = this.m_rotation;
-
-		for (var s = this.m_shapeList; s != null; s = s.m_next)
+		
+		
+		
+		var node = this.m_fixtureList;
+		var ppF = null; 
+		var found = false;
+		while (node != null)
 		{
-			s.Synchronize(this.m_position, this.m_R, this.m_position, this.m_R);
+			if (node == fixture)
+			{
+				if (ppF)
+					ppF.m_next = fixture.m_next;
+				else
+					this.m_fixtureList = fixture.m_next;
+				
+				found = true;
+				break;
+			}
+			
+			ppF = node;
+			node = node.m_next;
 		}
-
-		this.m_world.m_broadPhase.Commit();
-	},
-
-	// Get the position of the body's origin. The body's origin does not
-	// necessarily coincide with the center of mass. It depends on how the
-	// shapes are created.
-	GetOriginPosition: function(){
-		return b2Math.SubtractVV(this.m_position, b2Math.b2MulMV(this.m_R, this.m_center));
-	},
-
-	// Set the position of the body's center of mass and rotation (radians).
-	// This breaks any contacts and wakes the other bodies.
-	SetCenterPosition: function(position, rotation){
-		if (this.IsFrozen())
+		
+		
+		
+		
+		
+		var edge = this.m_contactList;
+		while (edge)
+		{
+			var c = edge.contact;
+			edge = edge.next;
+			
+			var fixtureA = c.GetFixtureA();
+			var fixtureB = c.GetFixtureB();
+			if (fixture == fixtureA || fixture == fixtureB)
+			{
+				
+				
+				this.m_world.m_contactManager.Destroy(c);
+			}
+		}
+		
+		if ( this.m_flags & b2Body.e_activeFlag )
+		{
+			var broadPhase = this.m_world.m_contactManager.m_broadPhase;
+			fixture.DestroyProxy(broadPhase);
+		}
+		else
+		{
+			
+		}
+		
+		fixture.Destroy();
+		fixture.m_body = null;
+		fixture.m_next = null;
+		
+		--this.m_fixtureCount;
+		
+		
+		this.ResetMassData();
+	}
+b2Body.prototype.SetPositionAndAngle = function (position, angle) {
+		
+		var f;
+		
+		
+		if (this.m_world.IsLocked() == true)
 		{
 			return;
 		}
-
-		this.m_rotation = rotation;
-		this.m_R.Set(this.m_rotation);
-		this.m_position.SetV( position );
-
-		this.m_position0.SetV(this.m_position);
-		this.m_rotation0 = this.m_rotation;
-
-		for (var s = this.m_shapeList; s != null; s = s.m_next)
+		
+		this.m_xf.R.Set(angle);
+		this.m_xf.position.SetV(position);
+		
+		
+		
+		var tMat = this.m_xf.R;
+		var tVec = this.m_sweep.localCenter;
+		
+		this.m_sweep.c.x = (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+		
+		this.m_sweep.c.y = (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+		
+		this.m_sweep.c.x += this.m_xf.position.x;
+		this.m_sweep.c.y += this.m_xf.position.y;
+		
+		this.m_sweep.c0.SetV(this.m_sweep.c);
+		
+		this.m_sweep.a0 = this.m_sweep.a = angle;
+		
+		var broadPhase = this.m_world.m_contactManager.m_broadPhase;
+		for (f = this.m_fixtureList; f; f = f.m_next)
 		{
-			s.Synchronize(this.m_position, this.m_R, this.m_position, this.m_R);
+			f.Synchronize(broadPhase, this.m_xf, this.m_xf);
 		}
-
-		this.m_world.m_broadPhase.Commit();
-	},
-
-	// Get the position of the body's center of mass. The body's center of mass
-	// does not necessarily coincide with the body's origin. It depends on how the
-	// shapes are created.
-	GetCenterPosition: function(){
-		return this.m_position;
-	},
-
-	// Get the rotation in radians.
-	GetRotation: function(){
-		return this.m_rotation;
-	},
-
-	GetRotationMatrix: function(){
-		return this.m_R;
-	},
-
-	// Set/Get the linear velocity of the center of mass.
-	SetLinearVelocity: function(v){
+		this.m_world.m_contactManager.FindNewContacts();
+	}
+b2Body.prototype.SetTransform = function (xf) {
+		this.SetPositionAndAngle(xf.position, xf.GetAngle());
+	}
+b2Body.prototype.GetTransform = function () {
+		return this.m_xf;
+	}
+b2Body.prototype.GetPosition = function () {
+		return this.m_xf.position;
+	}
+b2Body.prototype.SetPosition = function (position) {
+		this.SetPositionAndAngle(position, this.GetAngle());
+	}
+b2Body.prototype.GetAngle = function () {
+		return this.m_sweep.a;
+	}
+b2Body.prototype.SetAngle = function (angle) {
+		this.SetPositionAndAngle(this.GetPosition(), angle);
+	}
+b2Body.prototype.GetWorldCenter = function () {
+		return this.m_sweep.c;
+	}
+b2Body.prototype.GetLocalCenter = function () {
+		return this.m_sweep.localCenter;
+	}
+b2Body.prototype.SetLinearVelocity = function (v) {
+		if ( this.m_type == b2Body.b2_staticBody )
+		{
+			return;
+		}
 		this.m_linearVelocity.SetV(v);
-	},
-	GetLinearVelocity: function(){
+	}
+b2Body.prototype.GetLinearVelocity = function () {
 		return this.m_linearVelocity;
-	},
-
-	// Set/Get the angular velocity.
-	SetAngularVelocity: function(w){
-		this.m_angularVelocity = w;
-	},
-	GetAngularVelocity: function(){
+	}
+b2Body.prototype.SetAngularVelocity = function (omega) {
+		if ( this.m_type == b2Body.b2_staticBody )
+		{
+			return;
+		}
+		this.m_angularVelocity = omega;
+	}
+b2Body.prototype.GetAngularVelocity = function () {
 		return this.m_angularVelocity;
-	},
-
-	// Apply a force at a world point. Additive.
-	ApplyForce: function(force, point)
-	{
-		if (this.IsSleeping() == false)
+	}
+b2Body.prototype.GetDefinition = function () {
+		var bd = new b2BodyDef();
+		bd.type = this.GetType();
+		bd.allowSleep = (this.m_flags & b2Body.e_allowSleepFlag) == b2Body.e_allowSleepFlag;
+		bd.angle = this.GetAngle();
+		bd.angularDamping = this.m_angularDamping;
+		bd.angularVelocity = this.m_angularVelocity;
+		bd.fixedRotation = (this.m_flags & b2Body.e_fixedRotationFlag) == b2Body.e_fixedRotationFlag;
+		bd.bullet = (this.m_flags & b2Body.e_bulletFlag) == b2Body.e_bulletFlag;
+		bd.awake = (this.m_flags & b2Body.e_awakeFlag) == b2Body.e_awakeFlag;
+		bd.linearDamping = this.m_linearDamping;
+		bd.linearVelocity.SetV(this.GetLinearVelocity());
+		bd.position = this.GetPosition();
+		bd.userData = this.GetUserData();
+		return bd;
+	}
+b2Body.prototype.ApplyForce = function (force, point) {
+		if (this.m_type != b2Body.b2_dynamicBody)
 		{
-			this.m_force.Add( force );
-			this.m_torque += b2Math.b2CrossVV(b2Math.SubtractVV(point, this.m_position), force);
+			return;
 		}
-	},
-
-	// Apply a torque. Additive.
-	ApplyTorque: function(torque)
-	{
-		if (this.IsSleeping() == false)
+		
+		if (this.IsAwake() == false)
 		{
-			this.m_torque += torque;
+			this.SetAwake(true);
 		}
-	},
-
-	// Apply an impulse at a point. This immediately modifies the velocity.
-	ApplyImpulse: function(impulse, point)
-	{
-		if (this.IsSleeping() == false)
+		
+		
+		this.m_force.x += force.x;
+		this.m_force.y += force.y;
+		
+		this.m_torque += ((point.x - this.m_sweep.c.x) * force.y - (point.y - this.m_sweep.c.y) * force.x);
+	}
+b2Body.prototype.ApplyTorque = function (torque) {
+		if (this.m_type != b2Body.b2_dynamicBody)
 		{
-			this.m_linearVelocity.Add( b2Math.MulFV(this.m_invMass, impulse) );
-			this.m_angularVelocity += ( this.m_invI * b2Math.b2CrossVV( b2Math.SubtractVV(point, this.m_position), impulse)  );
+			return;
 		}
-	},
-
-	GetMass: function(){
+		
+		if (this.IsAwake() == false)
+		{
+			this.SetAwake(true);
+		}
+		this.m_torque += torque;
+	}
+b2Body.prototype.ApplyImpulse = function (impulse, point) {
+		if (this.m_type != b2Body.b2_dynamicBody)
+		{
+			return;
+		}
+		
+		if (this.IsAwake() == false)
+		{
+			this.SetAwake(true);
+		}
+		
+		this.m_linearVelocity.x += this.m_invMass * impulse.x;
+		this.m_linearVelocity.y += this.m_invMass * impulse.y;
+		
+		this.m_angularVelocity += this.m_invI * ((point.x - this.m_sweep.c.x) * impulse.y - (point.y - this.m_sweep.c.y) * impulse.x);
+	}
+b2Body.prototype.Split = function (callback) {
+		var linearVelocity = this.GetLinearVelocity().Copy();
+		var angularVelocity = this.GetAngularVelocity();
+		var center = this.GetWorldCenter();
+		var body1 = this;
+		var body2 = this.m_world.CreateBody(this.GetDefinition());
+		
+		var prev;
+		for (var f = body1.m_fixtureList; f; )
+		{
+			if (callback(f))
+			{
+				var next = f.m_next;
+				
+				if (prev)
+				{
+					prev.m_next = next;
+				}else {
+					body1.m_fixtureList = next;
+				}
+				body1.m_fixtureCount--;
+				
+				
+				f.m_next = body2.m_fixtureList;
+				body2.m_fixtureList = f;
+				body2.m_fixtureCount++;
+				
+				f.m_body = body2;
+				
+				f = next;
+			}else {
+				prev = f;
+				f = f.m_next
+			}
+		}
+		
+		body1.ResetMassData();
+		body2.ResetMassData();
+		
+		
+		var center1 = body1.GetWorldCenter();
+		var center2 = body2.GetWorldCenter();
+		
+		var velocity1 = b2Math.AddVV(linearVelocity, 
+			b2Math.CrossFV(angularVelocity,
+				b2Math.SubtractVV(center1, center)));
+				
+		var velocity2 = b2Math.AddVV(linearVelocity, 
+			b2Math.CrossFV(angularVelocity,
+				b2Math.SubtractVV(center2, center)));
+				
+		body1.SetLinearVelocity(velocity1);
+		body2.SetLinearVelocity(velocity2);
+		body1.SetAngularVelocity(angularVelocity);
+		body2.SetAngularVelocity(angularVelocity);
+		
+		body1.SynchronizeFixtures();
+		body2.SynchronizeFixtures();
+		
+		return body2;
+	}
+b2Body.prototype.Merge = function (other) {
+		var f;
+		for (f = other.m_fixtureList; f; )
+		{
+			var next = f.m_next;
+			
+			
+			other.m_fixtureCount--;
+			
+			
+			f.m_next = this.m_fixtureList;
+			this.m_fixtureList = f;
+			this.m_fixtureCount++;
+			
+			f.m_body = body2;
+			
+			f = next;
+		}
+		body1.m_fixtureCount = 0;
+		
+		
+		var body1 = this;
+		var body2 = other;
+		
+		
+		var center1 = body1.GetWorldCenter();
+		var center2 = body2.GetWorldCenter();
+		
+		var velocity1 = body1.GetLinearVelocity().Copy();
+		var velocity2 = body2.GetLinearVelocity().Copy();
+		
+		var angular1 = body1.GetAngularVelocity();
+		var angular = body2.GetAngularVelocity();
+		
+		
+		
+		body1.ResetMassData();
+		
+		this.SynchronizeFixtures();
+	}
+b2Body.prototype.GetMass = function () {
 		return this.m_mass;
-	},
-
-	GetInertia: function(){
+	}
+b2Body.prototype.GetInertia = function () {
 		return this.m_I;
-	},
-
-	// Get the world coordinates of a point give the local coordinates
-	// relative to the body's center of mass.
-	GetWorldPoint: function(localPoint){
-		return b2Math.AddVV(this.m_position , b2Math.b2MulMV(this.m_R, localPoint));
-	},
-
-	// Get the world coordinates of a vector given the local coordinates.
-	GetWorldVector: function(localVector){
-		return b2Math.b2MulMV(this.m_R, localVector);
-	},
-
-	// Returns a local point relative to the center of mass given a world point.
-	GetLocalPoint: function(worldPoint){
-		return b2Math.b2MulTMV(this.m_R, b2Math.SubtractVV(worldPoint, this.m_position));
-	},
-
-	// Returns a local vector given a world vector.
-	GetLocalVector: function(worldVector){
-		return b2Math.b2MulTMV(this.m_R, worldVector);
-	},
-
-	// Is this body static (immovable)?
-	IsStatic: function(){
-		return (this.m_flags & b2Body.e_staticFlag) == b2Body.e_staticFlag;
-	},
-
-	IsFrozen: function()
-	{
-		return (this.m_flags & b2Body.e_frozenFlag) == b2Body.e_frozenFlag;
-	},
-
-	// Is this body sleeping (not simulating).
-	IsSleeping: function(){
-		return (this.m_flags & b2Body.e_sleepFlag) == b2Body.e_sleepFlag;
-	},
-
-	// You can disable sleeping on this particular body.
-	AllowSleeping: function(flag)
-	{
+	}
+b2Body.prototype.GetMassData = function (data) {
+		data.mass = this.m_mass;
+		data.I = this.m_I;
+		data.center.SetV(this.m_sweep.localCenter);
+	}
+b2Body.prototype.SetMassData = function (massData) {
+		b2Settings.b2Assert(this.m_world.IsLocked() == false);
+		if (this.m_world.IsLocked() == true)
+		{
+			return;
+		}
+		
+		if (this.m_type != b2Body.b2_dynamicBody)
+		{
+			return;
+		}
+		
+		this.m_invMass = 0.0;
+		this.m_I = 0.0;
+		this.m_invI = 0.0;
+		
+		this.m_mass = massData.mass;
+		
+		
+		if (this.m_mass <= 0.0)
+		{
+			this.m_mass = 1.0;
+		}
+		this.m_invMass = 1.0 / this.m_mass;
+		
+		if (massData.I > 0.0 && (this.m_flags & b2Body.e_fixedRotationFlag) == 0)
+		{
+			
+			this.m_I = massData.I - this.m_mass * (massData.center.x * massData.center.x + massData.center.y * massData.center.y);
+			this.m_invI = 1.0 / this.m_I;
+		}
+		
+		
+		var oldCenter = this.m_sweep.c.Copy();
+		this.m_sweep.localCenter.SetV(massData.center);
+		this.m_sweep.c0.SetV(b2Math.MulX(this.m_xf, this.m_sweep.localCenter));
+		this.m_sweep.c.SetV(this.m_sweep.c0);
+		
+		
+		
+		this.m_linearVelocity.x += this.m_angularVelocity * -(this.m_sweep.c.y - oldCenter.y);
+		this.m_linearVelocity.y += this.m_angularVelocity * +(this.m_sweep.c.x - oldCenter.x);
+		
+	}
+b2Body.prototype.ResetMassData = function () {
+		
+		this.m_mass = 0.0;
+		this.m_invMass = 0.0;
+		this.m_I = 0.0;
+		this.m_invI = 0.0;
+		this.m_sweep.localCenter.SetZero();
+		
+		
+		if (this.m_type == b2Body.b2_staticBody || this.m_type == b2Body.b2_kinematicBody)
+		{
+			return;
+		}
+		
+		
+		
+		var center = b2Vec2.Make(0, 0);
+		for (var f = this.m_fixtureList; f; f = f.m_next)
+		{
+			if (f.m_density == 0.0)
+			{
+				continue;
+			}
+			
+			var massData = f.GetMassData();
+			this.m_mass += massData.mass;
+			center.x += massData.center.x * massData.mass;
+			center.y += massData.center.y * massData.mass;
+			this.m_I += massData.I;
+		}
+		
+		
+		if (this.m_mass > 0.0)
+		{
+			this.m_invMass = 1.0 / this.m_mass;
+			center.x *= this.m_invMass;
+			center.y *= this.m_invMass;
+		}
+		else
+		{
+			
+			this.m_mass = 1.0;
+			this.m_invMass = 1.0;
+		}
+		
+		if (this.m_I > 0.0 && (this.m_flags & b2Body.e_fixedRotationFlag) == 0)
+		{
+			
+			this.m_I -= this.m_mass * (center.x * center.x + center.y * center.y);
+			this.m_I *= this.m_inertiaScale;
+			b2Settings.b2Assert(this.m_I > 0);
+			this.m_invI = 1.0 / this.m_I;
+		}else {
+			this.m_I = 0.0;
+			this.m_invI = 0.0;
+		}
+		
+		
+		var oldCenter = this.m_sweep.c.Copy();
+		this.m_sweep.localCenter.SetV(center);
+		this.m_sweep.c0.SetV(b2Math.MulX(this.m_xf, this.m_sweep.localCenter));
+		this.m_sweep.c.SetV(this.m_sweep.c0);
+		
+		
+		
+		this.m_linearVelocity.x += this.m_angularVelocity * -(this.m_sweep.c.y - oldCenter.y);
+		this.m_linearVelocity.y += this.m_angularVelocity * +(this.m_sweep.c.x - oldCenter.x);
+		
+	}
+b2Body.prototype.GetWorldPoint = function (localPoint) {
+		
+		var A = this.m_xf.R;
+		var u = new b2Vec2(A.col1.x * localPoint.x + A.col2.x * localPoint.y, 
+								 A.col1.y * localPoint.x + A.col2.y * localPoint.y);
+		u.x += this.m_xf.position.x;
+		u.y += this.m_xf.position.y;
+		return u;
+	}
+b2Body.prototype.GetWorldVector = function (localVector) {
+		return b2Math.MulMV(this.m_xf.R, localVector);
+	}
+b2Body.prototype.GetLocalPoint = function (worldPoint) {
+		return b2Math.MulXT(this.m_xf, worldPoint);
+	}
+b2Body.prototype.GetLocalVector = function (worldVector) {
+		return b2Math.MulTMV(this.m_xf.R, worldVector);
+	}
+b2Body.prototype.GetLinearVelocityFromWorldPoint = function (worldPoint) {
+		
+		return new b2Vec2(this.m_linearVelocity.x - this.m_angularVelocity * (worldPoint.y - this.m_sweep.c.y), 
+		 this.m_linearVelocity.y + this.m_angularVelocity * (worldPoint.x - this.m_sweep.c.x));
+	}
+b2Body.prototype.GetLinearVelocityFromLocalPoint = function (localPoint) {
+		
+		var A = this.m_xf.R;
+		var worldPoint = new b2Vec2(A.col1.x * localPoint.x + A.col2.x * localPoint.y, 
+		 A.col1.y * localPoint.x + A.col2.y * localPoint.y);
+		worldPoint.x += this.m_xf.position.x;
+		worldPoint.y += this.m_xf.position.y;
+		return new b2Vec2(this.m_linearVelocity.x - this.m_angularVelocity * (worldPoint.y - this.m_sweep.c.y), 
+		 this.m_linearVelocity.y + this.m_angularVelocity * (worldPoint.x - this.m_sweep.c.x));
+	}
+b2Body.prototype.GetLinearDamping = function () {
+		return this.m_linearDamping;
+	}
+b2Body.prototype.SetLinearDamping = function (linearDamping) {
+		this.m_linearDamping = linearDamping;
+	}
+b2Body.prototype.GetAngularDamping = function () {
+		return this.m_angularDamping;
+	}
+b2Body.prototype.SetAngularDamping = function (angularDamping) {
+		this.m_angularDamping = angularDamping;
+	}
+b2Body.prototype.SetType = function ( type ) {
+		if ( this.m_type == type )
+		{
+			return;
+		}
+		
+		this.m_type = type;
+		
+		this.ResetMassData();
+		
+		if ( this.m_type == b2Body.b2_staticBody )
+		{
+			this.m_linearVelocity.SetZero();
+			this.m_angularVelocity = 0.0;
+		}
+		
+		this.SetAwake(true);
+		
+		this.m_force.SetZero();
+		this.m_torque = 0.0;
+		
+		
+		for (var ce = this.m_contactList; ce; ce = ce.next)
+		{
+			ce.contact.FlagForFiltering();
+		} 
+	}
+b2Body.prototype.GetType = function () {
+		return this.m_type;
+	}
+b2Body.prototype.SetBullet = function (flag) {
+		if (flag)
+		{
+			this.m_flags |= b2Body.e_bulletFlag;
+		}
+		else
+		{
+			this.m_flags &= ~b2Body.e_bulletFlag;
+		}
+	}
+b2Body.prototype.IsBullet = function () {
+		return (this.m_flags & b2Body.e_bulletFlag) == b2Body.e_bulletFlag;
+	}
+b2Body.prototype.SetSleepingAllowed = function (flag) {
 		if (flag)
 		{
 			this.m_flags |= b2Body.e_allowSleepFlag;
@@ -195,275 +759,140 @@ b2Body.prototype =
 		else
 		{
 			this.m_flags &= ~b2Body.e_allowSleepFlag;
-			this.WakeUp();
+			this.SetAwake(true);
 		}
-	},
-
-	// Wake up this body so it will begin simulating.
-	WakeUp: function(){
-		this.m_flags &= ~b2Body.e_sleepFlag;
-		this.m_sleepTime = 0.0;
-	},
-
-	// Get the list of all shapes attached to this body.
-	GetShapeList: function(){
-		return this.m_shapeList;
-	},
-
-	GetContactList: function()
-	{
-		return this.m_contactList;
-	},
-
-	GetJointList: function()
-	{
-		return this.m_jointList;
-	},
-
-	// Get the next body in the world's body list.
-	GetNext: function(){
-		return this.m_next;
-	},
-
-	GetUserData: function(){
-		return this.m_userData;
-	},
-
-	//--------------- Internals Below -------------------
-
-	initialize: function(bd, world){
-		// initialize instance variables for references
-		this.sMat0 = new b2Mat22();
-		this.m_position = new b2Vec2();
-		this.m_R = new b2Mat22(0);
-		this.m_position0 = new b2Vec2();
-		//
-
-		var i = 0;
-		var sd;
-		var massData;
-
-		this.m_flags = 0;
-		this.m_position.SetV( bd.position );
-		this.m_rotation = bd.rotation;
-		this.m_R.Set(this.m_rotation);
-		this.m_position0.SetV(this.m_position);
-		this.m_rotation0 = this.m_rotation;
-		this.m_world = world;
-
-		this.m_linearDamping = b2Math.b2Clamp(1.0 - bd.linearDamping, 0.0, 1.0);
-		this.m_angularDamping = b2Math.b2Clamp(1.0 - bd.angularDamping, 0.0, 1.0);
-
-		this.m_force = new b2Vec2(0.0, 0.0);
-		this.m_torque = 0.0;
-
-		this.m_mass = 0.0;
-
-		var massDatas = new Array(b2Settings.b2_maxShapesPerBody);
-		for (i = 0; i < b2Settings.b2_maxShapesPerBody; i++){
-			massDatas[i] = new b2MassData();
-		}
-
-		// Compute the shape mass properties, the bodies total mass and COM.
-		this.m_shapeCount = 0;
-		this.m_center = new b2Vec2(0.0, 0.0);
-		for (i = 0; i < b2Settings.b2_maxShapesPerBody; ++i)
+	}
+b2Body.prototype.SetAwake = function (flag) {
+		if (flag)
 		{
-			sd = bd.shapes[i];
-			if (sd == null) break;
-			massData = massDatas[ i ];
-			sd.ComputeMass(massData);
-			this.m_mass += massData.mass;
-			//this.m_center += massData->mass * (sd->localPosition + massData->center);
-			this.m_center.x += massData.mass * (sd.localPosition.x + massData.center.x);
-			this.m_center.y += massData.mass * (sd.localPosition.y + massData.center.y);
-			++this.m_shapeCount;
-		}
-
-		// Compute center of mass, and shift the origin to the COM.
-		if (this.m_mass > 0.0)
-		{
-			this.m_center.Multiply( 1.0 / this.m_mass );
-			this.m_position.Add( b2Math.b2MulMV(this.m_R, this.m_center) );
+			this.m_flags |= b2Body.e_awakeFlag;
+			this.m_sleepTime = 0.0;
 		}
 		else
 		{
-			this.m_flags |= b2Body.e_staticFlag;
-		}
-
-		// Compute the moment of inertia.
-		this.m_I = 0.0;
-		for (i = 0; i < this.m_shapeCount; ++i)
-		{
-			sd = bd.shapes[i];
-			massData = massDatas[ i ];
-			this.m_I += massData.I;
-			var r = b2Math.SubtractVV( b2Math.AddVV(sd.localPosition, massData.center), this.m_center );
-			this.m_I += massData.mass * b2Math.b2Dot(r, r);
-		}
-
-		if (this.m_mass > 0.0)
-		{
-			this.m_invMass = 1.0 / this.m_mass;
-		}
-		else
-		{
-			this.m_invMass = 0.0;
-		}
-
-		if (this.m_I > 0.0 && bd.preventRotation == false)
-		{
-			this.m_invI = 1.0 / this.m_I;
-		}
-		else
-		{
-			this.m_I = 0.0;
-			this.m_invI = 0.0;
-		}
-
-		// Compute the center of mass velocity.
-		this.m_linearVelocity = b2Math.AddVV(bd.linearVelocity, b2Math.b2CrossFV(bd.angularVelocity, this.m_center));
-		this.m_angularVelocity = bd.angularVelocity;
-
-		this.m_jointList = null;
-		this.m_contactList = null;
-		this.m_prev = null;
-		this.m_next = null;
-
-		// Create the shapes.
-		this.m_shapeList = null;
-		for (i = 0; i < this.m_shapeCount; ++i)
-		{
-			sd = bd.shapes[i];
-			var shape = b2Shape.Create(sd, this, this.m_center);
-			shape.m_next = this.m_shapeList;
-			this.m_shapeList = shape;
-		}
-
-		this.m_sleepTime = 0.0;
-		if (bd.allowSleep)
-		{
-			this.m_flags |= b2Body.e_allowSleepFlag;
-		}
-		if (bd.isSleeping)
-		{
-			this.m_flags |= b2Body.e_sleepFlag;
-		}
-
-		if ((this.m_flags & b2Body.e_sleepFlag)  || this.m_invMass == 0.0)
-		{
-			this.m_linearVelocity.Set(0.0, 0.0);
+			this.m_flags &= ~b2Body.e_awakeFlag;
+			this.m_sleepTime = 0.0;
+			this.m_linearVelocity.SetZero();
 			this.m_angularVelocity = 0.0;
+			this.m_force.SetZero();
+			this.m_torque = 0.0;
 		}
-
-		this.m_userData = bd.userData;
-	},
-	// does not support destructors
-	/*~b2Body(){
-		b2Shape* s = this.m_shapeList;
-		while (s)
+	}
+b2Body.prototype.IsAwake = function () {
+		return (this.m_flags & b2Body.e_awakeFlag) == b2Body.e_awakeFlag;
+	}
+b2Body.prototype.SetFixedRotation = function (fixed) {
+		if(fixed)
 		{
-			b2Shape* s0 = s;
-			s = s->this.m_next;
-
-			b2Shape::this.Destroy(s0);
+			this.m_flags |= b2Body.e_fixedRotationFlag;
 		}
-	}*/
-
-	Destroy: function(){
-		var s = this.m_shapeList;
-		while (s)
+		else
 		{
-			var s0 = s;
-			s = s.m_next;
-
-			b2Shape.Destroy(s0);
+			this.m_flags &= ~b2Body.e_fixedRotationFlag;
 		}
-	},
-
-	// Temp mat
-	sMat0: new b2Mat22(),
-	SynchronizeShapes: function(){
-		//b2Mat22 R0(this.m_rotation0);
-		this.sMat0.Set(this.m_rotation0);
-		for (var s = this.m_shapeList; s != null; s = s.m_next)
+		
+		this.ResetMassData();
+	}
+b2Body.prototype.IsFixedRotation = function () {
+		return (this.m_flags & b2Body.e_fixedRotationFlag)==b2Body.e_fixedRotationFlag;
+	}
+b2Body.prototype.SetActive = function ( flag ) {
+		if (flag == this.IsActive())
 		{
-			s.Synchronize(this.m_position0, this.sMat0, this.m_position, this.m_R);
+			return;
 		}
-	},
-
-	QuickSyncShapes: function(){
-		for (var s = this.m_shapeList; s != null; s = s.m_next)
+		
+		var broadPhase;
+		var f;
+		if (flag)
 		{
-			s.QuickSync(this.m_position, this.m_R);
-		}
-	},
+			this.m_flags |= b2Body.e_activeFlag;
 
-	// This is used to prevent connected bodies from colliding.
-	// It may lie, depending on the collideConnected flag.
-	IsConnected: function(other){
-		for (var jn = this.m_jointList; jn != null; jn = jn.next)
+			
+			broadPhase = this.m_world.m_contactManager.m_broadPhase;
+			for ( f = this.m_fixtureList; f; f = f.m_next)
+			{
+				f.CreateProxy(broadPhase, this.m_xf);
+			}
+			
+		}
+		else
 		{
-			if (jn.other == other)
-				return jn.joint.m_collideConnected == false;
+			this.m_flags &= ~b2Body.e_activeFlag;
+
+			
+			broadPhase = this.m_world.m_contactManager.m_broadPhase;
+			for ( f = this.m_fixtureList; f; f = f.m_next)
+			{
+				f.DestroyProxy(broadPhase);
+			}
+
+			
+			var ce = this.m_contactList;
+			while (ce)
+			{
+				var ce0 = ce;
+				ce = ce.next;
+				this.m_world.m_contactManager.Destroy(ce0.contact);
+			}
+			this.m_contactList = null;
 		}
-
-		return false;
-	},
-
-	Freeze: function(){
-		this.m_flags |= b2Body.e_frozenFlag;
-		this.m_linearVelocity.SetZero();
-		this.m_angularVelocity = 0.0;
-
-		for (var s = this.m_shapeList; s != null; s = s.m_next)
-		{
-			s.DestroyProxy();
-		}
-	},
-
-	m_flags: 0,
-
-	m_position: new b2Vec2(),
-	m_rotation: null,
-	m_R: new b2Mat22(0),
-
-	// Conservative advancement data.
-	m_position0: new b2Vec2(),
-	m_rotation0: null,
-
-	m_linearVelocity: null,
-	m_angularVelocity: null,
-
-	m_force: null,
-	m_torque: null,
-
-	m_center: null,
-
-	m_world: null,
-	m_prev: null,
-	m_next: null,
-
-	m_shapeList: null,
-	m_shapeCount: 0,
-
-	m_jointList: null,
-	m_contactList: null,
-
-	m_mass: null,
-	m_invMass: null,
-	m_I: null,
-	m_invI: null,
-
-	m_linearDamping: null,
-	m_angularDamping: null,
-
-	m_sleepTime: null,
-
-	m_userData: null};
-b2Body.e_staticFlag = 0x0001;
-b2Body.e_frozenFlag = 0x0002;
-b2Body.e_islandFlag = 0x0004;
-b2Body.e_sleepFlag = 0x0008;
-b2Body.e_allowSleepFlag = 0x0010;
-b2Body.e_destroyFlag = 0x0020;
+	}
+b2Body.prototype.IsActive = function () {
+		return (this.m_flags & b2Body.e_activeFlag) == b2Body.e_activeFlag;
+	}
+b2Body.prototype.IsSleepingAllowed = function () {
+		return(this.m_flags & b2Body.e_allowSleepFlag) == b2Body.e_allowSleepFlag;
+	}
+b2Body.prototype.GetFixtureList = function () {
+		return this.m_fixtureList;
+	}
+b2Body.prototype.GetJointList = function () {
+		return this.m_jointList;
+	}
+b2Body.prototype.GetControllerList = function () {
+		return this.m_controllerList;
+	}
+b2Body.prototype.GetContactList = function () {
+		return this.m_contactList;
+	}
+b2Body.prototype.GetNext = function () {
+		return this.m_next;
+	}
+b2Body.prototype.GetUserData = function () {
+		return this.m_userData;
+	}
+b2Body.prototype.SetUserData = function (data) {
+		this.m_userData = data;
+	}
+b2Body.prototype.GetWorld = function () {
+		return this.m_world;
+	}
+// attributes
+b2Body.prototype.m_flags =  0;
+b2Body.prototype.m_type =  0;
+b2Body.prototype.m_islandIndex =  0;
+b2Body.prototype.m_xf =  new b2Transform();
+b2Body.prototype.m_sweep =  new b2Sweep();
+b2Body.prototype.m_linearVelocity =  new b2Vec2();
+b2Body.prototype.m_angularVelocity =  null;
+b2Body.prototype.m_force =  new b2Vec2();
+b2Body.prototype.m_torque =  null;
+b2Body.prototype.m_world =  null;
+b2Body.prototype.m_prev =  null;
+b2Body.prototype.m_next =  null;
+b2Body.prototype.m_fixtureList =  null;
+b2Body.prototype.m_fixtureCount =  0;
+b2Body.prototype.m_controllerList =  null;
+b2Body.prototype.m_controllerCount =  0;
+b2Body.prototype.m_jointList =  null;
+b2Body.prototype.m_contactList =  null;
+b2Body.prototype.m_mass =  null;
+b2Body.prototype.m_invMass =  null;
+b2Body.prototype.m_I =  null;
+b2Body.prototype.m_invI =  null;
+b2Body.prototype.m_inertiaScale =  null;
+b2Body.prototype.m_linearDamping =  null;
+b2Body.prototype.m_angularDamping =  null;
+b2Body.prototype.m_sleepTime =  null;
+b2Body.prototype.m_userData =  null;

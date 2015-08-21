@@ -1,34 +1,49 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-// A manifold for two touching convex shapes.
-var b2Manifold = Class.create();
-b2Manifold.prototype = 
-{
-	initialize: function(){
-		this.points = new Array(b2Settings.b2_maxManifoldPoints);
+var b2Manifold = function() {
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+b2Manifold.prototype.__constructor = function () {
+		this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
 		for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++){
-			this.points[i] = new b2ContactPoint();
+			this.m_points[i] = new b2ManifoldPoint();
 		}
-		this.normal = new b2Vec2();
-	},
-	points: null,
-	normal: null,
-	pointCount: 0};
+		this.m_localPlaneNormal = new b2Vec2();
+		this.m_localPoint = new b2Vec2();
+	}
+b2Manifold.prototype.__varz = function(){
+}
+// static methods
+// static attributes
+b2Manifold.e_circles =  0x0001;
+b2Manifold.e_faceA =  0x0002;
+b2Manifold.e_faceB =  0x0004;
+// methods
+b2Manifold.prototype.Reset = function () {
+		for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++){
+			(this.m_points[i]).Reset();
+		}
+		this.m_localPlaneNormal.SetZero();
+		this.m_localPoint.SetZero();
+		this.m_type = 0;
+		this.m_pointCount = 0;
+	}
+b2Manifold.prototype.Set = function (m) {
+		this.m_pointCount = m.m_pointCount;
+		for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++){
+			(this.m_points[i]).Set(m.m_points[i]);
+		}
+		this.m_localPlaneNormal.SetV(m.m_localPlaneNormal);
+		this.m_localPoint.SetV(m.m_localPoint);
+		this.m_type = m.m_type;
+	}
+b2Manifold.prototype.Copy = function () {
+		var copy = new b2Manifold();
+		copy.Set(this);
+		return copy;
+	}
+// attributes
+b2Manifold.prototype.m_points =  null;
+b2Manifold.prototype.m_localPlaneNormal =  null;
+b2Manifold.prototype.m_localPoint =  null;
+b2Manifold.prototype.m_type =  0;
+b2Manifold.prototype.m_pointCount =  0;

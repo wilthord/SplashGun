@@ -1,17 +1,26 @@
 BulletClass = function(iniPos, endPos) {
 	EntityClass.call(this);
 	
-	this.dir = new b2Vec2(iniPos.x, iniPos.y);
+	var vecIni = new b2Vec2(iniPos.x, iniPos.y);
+	//var vecDest = new b2Vec2(endPos.x, endPos.y);
+
+	this.dir = new b2Vec2(endPos.x, endPos.y);
+	this.dir.Subtract(vecIni);
 	this.dir.Normalize();
 	this.inicio={x:iniPos.x, y:iniPos.y};
 	this.destino={x:endPos.x, y:endPos.y};
 	this.step=1;
 	this.totalSteps=1;
-	this.velBullet=20;
+	this.velBullet=100;
 	this.currSpriteName= 'Cuadro3';
 
 	this.pos.x = iniPos.x;
 	this.pos.y = iniPos.y;
+
+	this.last.x = iniPos.x;
+	this.last.y = iniPos.y;
+
+	this.isMoving = true;
 
 	// Create our physics body;
     var entityDef = {
@@ -20,9 +29,10 @@ BulletClass = function(iniPos, endPos) {
         x: iniPos.x,
         y: iniPos.y,
         halfHeight: 23 * 0.5,
-        halfWidth: 28 * 0.5,
+        halfWidth: 23 * 0.5,
         damping: 0,
         angle: 0,
+        filterGroupIndex:-2,
         categories: ['projectile'],
         collidesWith: ['player'],
         userData: {
@@ -41,23 +51,53 @@ BulletClass.prototype = Object.create(EntityClass.prototype);
 BulletClass.prototype.constructor = BulletClass;
 
 BulletClass.prototype.update = function(){
-	//Si la bala se encuentra en el punto de destino
-	/*var dt = this.step/this.totalSteps;
-	if(dt>1){
-		this.pos=this.destino;
-		GE.entities.push(new SplashClass(this.pos));
-		GE.entities.removeObj(this);
-	}else{
-		this.pos.x = ((1-dt)*this.inicio.x) + (dt * this.destino.x);
-		this.pos.y = ((1-dt)*this.inicio.y) + (dt * this.destino.y);
-		this.step++;
-	}*/
-
-	this.physBody.SetLinearVelocity(new b2Vec2(this.dir.x * this.velBullet, this.dir.y * this.velBullet));
 
     if(this.physBody !== null) {
         this.pos = this.physBody.GetPosition();
+        this.physBody.SetLinearVelocity(new b2Vec2(this.dir.x * this.velBullet, this.dir.y * this.velBullet));
     }
+
+	//Se asume que si uno de los ejes (x o y) del destino es superado, se alcanzó el objetivo
+    //Primero Se valida si se alcanzó o se pasó el punto destino, en el eje de las x
+    if(this.isMoving) {
+		if(this.pos.x>this.last.x){
+			if(this.destino.x<=this.pos.x && this.destino.x>=this.last.x){
+				this.isMoving=false;
+				this.pos = this.destino;
+			}
+		}else{
+			if(this.destino.x>=this.pos.x && this.destino.x<=this.last.x){
+				this.isMoving=false;
+				this.pos = this.destino;
+			}
+		}
+	}
+	//Si no se detuvo por las validaciones en el eje de las x, validamos en y
+	if(this.isMoving) {
+		if(this.pos.y>this.last.y){
+			if(this.destino.y<=this.pos.y && this.destino.y>=this.last.y){
+				this.isMoving=false;
+				this.pos = this.destino;
+			}
+		}else{
+			if(this.destino.y>=this.pos.y && this.destino.y<=this.last.y){
+				this.isMoving=false;
+				this.pos = this.destino;
+			}
+		}
+	}
+
+	this.last.x=this.pos.x;
+    this.last.y=this.pos.y;
+
+	if(this.isMoving) {
+		this.physBody.SetLinearVelocity(new b2Vec2(this.dir.x * this.velBullet, this.dir.y * this.velBullet));
+	}else{
+		this.physBody.SetLinearVelocity(new b2Vec2(0,0));
+		GE.entities.push(new SplashClass(this.pos));
+		GE.entities.removeObj(this);
+	}
+	
 }
 
 /*

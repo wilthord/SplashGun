@@ -1,27 +1,24 @@
-﻿/*
-* Copyright (c) 2006-2007 Erin Catto http:
-*
-* This software is provided 'as-is', without any express or implied
-* warranty.  In no event will the authors be held liable for any damages
-* arising from the use of this software.
-* Permission is granted to anyone to use this software for any purpose,
-* including commercial applications, and to alter it and redistribute it
-* freely, subject to the following restrictions:
-* 1. The origin of this software must not be misrepresented; you must not
-* claim that you wrote the original software. If you use this software
-* in a product, an acknowledgment in the product documentation would be
-* appreciated but is not required.
-* 2. Altered source versions must be plainly marked, and must not be
-* misrepresented the original software.
-* 3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-
-var b2TimeStep = Class.create();
-b2TimeStep.prototype = 
-{
-	dt: null,
-	inv_dt: null,
-	iterations: 0,
-	initialize: function() {}};
+var b2TimeStep = function() {
+this.__varz();
+this.__constructor.apply(this, arguments);
+}
+b2TimeStep.prototype.__constructor = function(){}
+b2TimeStep.prototype.__varz = function(){
+}
+// static methods
+// static attributes
+// methods
+b2TimeStep.prototype.Set = function (step) {
+		this.dt = step.dt;
+		this.inv_dt = step.inv_dt;
+		this.positionIterations = step.positionIterations;
+		this.velocityIterations = step.velocityIterations;
+		this.warmStarting = step.warmStarting;
+	}
+// attributes
+b2TimeStep.prototype.dt =  null;
+b2TimeStep.prototype.inv_dt =  null;
+b2TimeStep.prototype.dtRatio =  null;
+b2TimeStep.prototype.velocityIterations =  0;
+b2TimeStep.prototype.positionIterations =  0;
+b2TimeStep.prototype.warmStarting =  null;

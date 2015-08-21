@@ -45,8 +45,9 @@ InputEngineClass.prototype.setup = function () {
 
 //-----------------------------
 InputEngineClass.prototype.onMouseMove = function (event) {
-	gInputEngine.mouse.x = event.clientX;
-	gInputEngine.mouse.y = event.clientY;
+	var rect = GE.canvasObj.getBoundingClientRect();
+	gInputEngine.mouse.x = event.clientX-rect.left;
+	gInputEngine.mouse.y = event.clientY-rect.top;
 }
 
 //-----------------------------

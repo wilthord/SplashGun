@@ -127,7 +127,7 @@ GameEngineClass.prototype.tick = function() {
 GameEngineClass.prototype.updateGame=function(){
 	var entidadesEliminar = [];
 	GE.entities.forEach(function(entidad) {
-		if(entidad.isdead){
+		if(entidad.isDead){
 			entidadesEliminar.push(entidad);
 		}else{
 			entidad.update();

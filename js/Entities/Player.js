@@ -1,7 +1,7 @@
 PlayerClass = function(){		//Heredamos de la clase entidad
 	EntityClass.call(this);
 	
-	this.currSpriteName = 'Cuadro2';
+	this.currSpriteName = 'Personaje';
 	this.movimiento = 2;				//Cantidad de movimiento por cada tick
 	//Indica el tiempo que debe esperar, para disparar nuevamente
 	this.weponColdown = 30;
@@ -9,12 +9,23 @@ PlayerClass = function(){		//Heredamos de la clase entidad
 	this.weponReadyCountdown = 0;
 	//TRUE indica que cada click es un disparo, FALSE que mientras este presionado el mouse, dispara si se ha cumplido el cold down del arma
 	this.discreteShoot = true;
+	//Vida del jugador
+	this.energy = 15;
+
+	this.h=2;
+
+	this.w=2;
 }
 
 PlayerClass.prototype = Object.create(EntityClass.prototype);
 PlayerClass.prototype.constructor = PlayerClass;
 
 PlayerClass.prototype.update = function(){
+
+	if(this.energy<1){
+		isDead=true;
+		return;
+	}
 
 	if(this.weponReadyCountdown>0){
 		this.weponReadyCountdown--;

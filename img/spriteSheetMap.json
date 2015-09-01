@@ -1,11 +1,13 @@
 {"sheets":[
 		{"imgURL":"img/spriteSheet.png", "sheetName":"Cuadros",
 			"sprites":[
-				{"name":"Cuadro1","x":0,"y":0,"w":23,"h":23 },
-				{"name":"Cuadro2","x":30,"y":0,"w":23,"h":23 },
-				{"name":"Cuadro3","x":60,"y":0,"w":23,"h":23 },
-				{"name":"Cuadro4","x":90,"y":0,"w":28,"h":23 },
-				{"name":"Cuadro5","x":120,"y":0,"w":23,"h":23 }
+				{"name":"SplashAcido","x":0,"y":0,"w":64,"h":48 },
+				{"name":"SplashLava","x":70,"y":0,"w":64,"h":48 },
+				{"name":"SplashHielo","x":140,"y":0,"w":64,"h":48 },
+				{"name":"Personaje","x":0,"y":60,"w":46,"h":75 },
+				{"name":"Enemigo","x":65,"y":70,"w":62,"h":61 },
+				{"name":"MarcaMouse","x":140,"y":75,"w":53,"h":52 },
+				{"name":"Bala","x":204,"y":87,"w":26,"h":23 }
 			]
 		}
 	]

@@ -11,8 +11,8 @@ BulletClass = function(iniPos, endPos) {
 	this.destino={x:endPos.x, y:endPos.y};
 	this.step=1;
 	this.totalSteps=1;
-	this.velBullet=100;
-	this.currSpriteName= 'Cuadro3';
+	this.velBullet=150;
+	this.currSpriteName= 'Bala';
 
 	this.pos.x = iniPos.x;
 	this.pos.y = iniPos.y;
@@ -20,7 +20,14 @@ BulletClass = function(iniPos, endPos) {
 	this.last.x = iniPos.x;
 	this.last.y = iniPos.y;
 
-	this.isMoving = true;
+	this.isDead=false;
+
+	this.h=2;
+
+	this.w=2;
+
+	this.angulo = Math.atan2(endPos.y, endPos.x)-Math.atan2(vecIni.y, vecIni.x)+90;
+	if (this.angulo < 0) this.angulo += 2 * Math.PI;
 
 	// Create our physics body;
     var entityDef = {
@@ -29,7 +36,7 @@ BulletClass = function(iniPos, endPos) {
         x: iniPos.x,
         y: iniPos.y,
         halfHeight: 23 * 0.5,
-        halfWidth: 23 * 0.5,
+        halfWidth: 26 * 0.5,
         damping: 0,
         angle: 0,
         filterGroupIndex:-2,
@@ -57,31 +64,32 @@ BulletClass.prototype.update = function(){
         this.physBody.SetLinearVelocity(new b2Vec2(this.dir.x * this.velBullet, this.dir.y * this.velBullet));
     }
 
+	//this.angulo = Math.atan2(this.dir.y, this.dir.x);
 	//Se asume que si uno de los ejes (x o y) del destino es superado, se alcanzó el objetivo
     //Primero Se valida si se alcanzó o se pasó el punto destino, en el eje de las x
-    if(this.isMoving) {
+    if(!this.isDead) {
 		if(this.pos.x>this.last.x){
 			if(this.destino.x<=this.pos.x && this.destino.x>=this.last.x){
-				this.isMoving=false;
+				this.isDead=true;
 				this.pos = this.destino;
 			}
 		}else{
 			if(this.destino.x>=this.pos.x && this.destino.x<=this.last.x){
-				this.isMoving=false;
+				this.isDead=true;
 				this.pos = this.destino;
 			}
 		}
 	}
 	//Si no se detuvo por las validaciones en el eje de las x, validamos en y
-	if(this.isMoving) {
+	if(!this.isDead) {
 		if(this.pos.y>this.last.y){
 			if(this.destino.y<=this.pos.y && this.destino.y>=this.last.y){
-				this.isMoving=false;
+				this.isDead=true;
 				this.pos = this.destino;
 			}
 		}else{
 			if(this.destino.y>=this.pos.y && this.destino.y<=this.last.y){
-				this.isMoving=false;
+				this.isDead=true;
 				this.pos = this.destino;
 			}
 		}
@@ -90,12 +98,11 @@ BulletClass.prototype.update = function(){
 	this.last.x=this.pos.x;
     this.last.y=this.pos.y;
 
-	if(this.isMoving) {
+	if(!this.isDead) {
 		this.physBody.SetLinearVelocity(new b2Vec2(this.dir.x * this.velBullet, this.dir.y * this.velBullet));
 	}else{
 		this.physBody.SetLinearVelocity(new b2Vec2(0,0));
 		GE.entities.push(new SplashClass(this.pos));
-		GE.entities.removeObj(this);
 	}
 	
 }

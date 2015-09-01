@@ -2,7 +2,11 @@ GunTargetClass = function(){
 	EntityClass.call(this);
 	//pos : {x:0,y:0},
 	this.zindex = 70;
-	this.currSpriteName = 'Cuadro1';
+	this.currSpriteName = 'MarcaMouse';
+
+	this.h=3;
+
+	this.w=3;
 }
 
 GunTargetClass.prototype = Object.create(EntityClass.prototype);

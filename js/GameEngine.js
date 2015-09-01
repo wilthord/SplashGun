@@ -20,6 +20,10 @@ GameEngineClass = function(){
 	this.marcaMouse={};
 
 	this.nombreCanvas='myCanvas';
+
+	this.enemySpawnTime = 600;
+
+	this.nextEnemySpawn = 0;
 }
 
 GameEngineClass.prototype.setup = function () {
@@ -28,7 +32,6 @@ GameEngineClass.prototype.setup = function () {
     gPhysicsEngine.create();
 
     // Add contact listener
-    /*
     gPhysicsEngine.addContactListener({
 
         PostSolve: function (bodyA, bodyB, impulse) {
@@ -47,7 +50,7 @@ GameEngineClass.prototype.setup = function () {
                 }
             }
         }
-    });*/
+    });
 
 }
 
@@ -122,11 +125,25 @@ GameEngineClass.prototype.tick = function() {
 }
 
 GameEngineClass.prototype.updateGame=function(){
+	var entidadesEliminar = [];
 	GE.entities.forEach(function(entidad) {
-		entidad.update();
+		if(entidad.isdead){
+			entidadesEliminar.push(entidad);
+		}else{
+			entidad.update();
+		}
 	});
+	
+	for (var j = 0; j < entidadesEliminar.length; j++) {
+		if(entidadesEliminar[j].physBody) gPhysicsEngine.removeBody(entidadesEliminar[j].physBody);
+		gPhysicsEngine.removeBody(entidadesEliminar[j]);
+        this.entities.removeObj(entidadesEliminar[j]);
+    }
 
 	gPhysicsEngine.update();
+
+	//Validamos si es momento de generar un nuevo enemigo
+	if(this.nextEnemySpawn===0) this.spawnEnemy();
 }
 
 GameEngineClass.prototype.drawGame=function(){
@@ -135,6 +152,12 @@ GameEngineClass.prototype.drawGame=function(){
 	GE.entities.forEach(function(entidad) {
 		entidad.draw();
 	});
+}
+
+GameEngineClass.prototype.spawnEnemy = function(){
+	var nuevoEnemigo = new EnemyClass({x:0, y:0});
+	this.nextEnemySpawn=this.enemySpawnTime;
+	this.entities.push(nuevoEnemigo);
 }
 
 

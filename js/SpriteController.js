@@ -62,7 +62,7 @@ function callbackJSONImagenes(respuestaText, callbackIniciar){
     var mySpriteSheet = {};
     var mySpriteJson = {};
 
-    for(i=0; i < obj.sheets.length; i++) {
+    for(var i=0; i < obj.sheets.length; i++) {
 
         mySpriteSheet = new SpriteSheetClass();     //Creamos una nueva instancia de la SpriteSheet
         var img = new Image();                      //Creamos una imagen, que será nuestra spriteSheet
@@ -82,6 +82,27 @@ function callbackJSONImagenes(respuestaText, callbackIniciar){
 
     callbackIniciar();
 
+}
+
+function findSprite(nombreSprite){
+    var sprite = null;
+    var sheet = {};
+
+    for(var sheetName in spriteSheetsMap) {
+
+        sheet = spriteSheetsMap[sheetName];             //Consultamos SpriteSheet por SpriteSheet
+        sprite = sheet.getSprite(nombreSprite);         //Buscamos el Sprite en la sheet actual
+
+        //Si no se encontró el Sprite, se sigue con el siclo
+        if(sprite === null) {
+            continue;
+        }else{
+            break;
+        }
+
+    }
+
+    return sprite;
 }
 
 //Dibuja el Sprite con nombre "nombreSprite" en la posicion X, Y
@@ -110,3 +131,72 @@ function pintarSprite(nombreSprite, x, y){
 
     GE.ctx.drawImage(sheet.img, sprite.x, sprite.y, sprite.w, sprite.h, x, y, sprite.w, sprite.h);
 }
+
+//Dibuja el Sprite con nombre "nombreSprite" en la posicion X, Y
+function pintarSpriteCustom(nombreSprite, x, y, w, h, angulo){
+
+    var sprite = {};
+    var sheet = {};
+
+    for(var sheetName in spriteSheetsMap) {
+
+        sheet = spriteSheetsMap[sheetName];             //Consultamos SpriteSheet por SpriteSheet
+        sprite = sheet.getSprite(nombreSprite);         //Buscamos el Sprite en la sheet actual
+
+        //Si no se encontró el Sprite, se sigue con el siclo
+        if(sprite === null) {
+            continue;
+        }else{
+            break;
+        }
+
+    }
+
+    if (sprite === null || sheet === null) {
+        return;
+    }
+
+    GE.ctx.save();
+    GE.ctx.translate(x, y);
+    //GE.ctx.rotate((this.angulo*Math.PI)/180);
+    GE.ctx.rotate(angulo);
+    GE.ctx.drawImage(sheet.img, sprite.x, sprite.y, sprite.w, sprite.h, -sprite.w/(2*w), -sprite.h/(2*h), sprite.w/w, sprite.h/h);
+    GE.ctx.restore();
+}
+/*
+//Dibuja el Sprite con nombre "nombreSprite" en la posicion X, Y
+function pintarSpriteCenter(nombreSprite, x, y, w, h, angulo, centerAxis){
+
+    var sprite = {};
+    var sheet = {};
+
+    for(var sheetName in spriteSheetsMap) {
+
+        sheet = spriteSheetsMap[sheetName];             //Consultamos SpriteSheet por SpriteSheet
+        sprite = sheet.getSprite(nombreSprite);         //Buscamos el Sprite en la sheet actual
+
+        //Si no se encontró el Sprite, se sigue con el siclo
+        if(sprite === null) {
+            continue;
+        }else{
+            break;
+        }
+
+    }
+
+    if (sprite === null || sheet === null) {
+        return;
+    }
+
+    GE.ctx.save();
+    var newX = -sprite.w/(2*w);
+    var newY = -sprite.h/(2*h);
+    
+    GE.ctx.translate(x-sprite.w, y);
+    //if(centerAxis==='X') newY/=4;
+    //if(centerAxis==='Y') newX/=4;
+    //GE.ctx.rotate((this.angulo*Math.PI)/180);
+    //GE.ctx.rotate(angulo);
+    GE.ctx.drawImage(sheet.img, sprite.x, sprite.y, sprite.w, sprite.h, 0, 0, sprite.w/w, sprite.h/h);
+    GE.ctx.restore();
+}*/
